@@ -1,10 +1,17 @@
+'''
+This module handles the creation of the mesh object (.obj)
+
+'''
+
+
 import cv2
 
 
 def generate_mesh_from_images(path: str, out:str = None):
     '''
     ## Args
-    - path (str) 
+    - path (str): path to the folder of images
+    - out (str) (optional): output directory for mesh
 
     ## Output
     A .obj file that can be used within nvidia omniverse.
