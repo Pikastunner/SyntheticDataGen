@@ -5,9 +5,9 @@ This is the entry point for the program. It will contain the GUI and determine t
 if __name__ == "__main__":
     ## set up the pyqt elements
 
-    
-    ## initialise the pyqt window
 
+    ## initialise the pyqt window
+    print("I love python!!")
  
 
 
