@@ -1,7 +1,33 @@
+'''
+File to handle camera settings and photo taking
+'''
+
 import pyrealsense2 as rs
 import numpy as np
 import cv2
 import os
+
+OUTPUT_PATH = "input_images"
+
+def create_photo_id():
+    files = os.listdir(OUTPUT_PATH)
+    return int(len(files) / 2)
+
+# Function to tell whether camera is connected
+def is_camera_connected():
+    context = rs.context()
+    if len(context.devices) == 0:
+        return False
+    return True
+
+# Function to take a photo and then save it to folder
+def take_photo():
+    output = capture_and_save_single_frame()
+    if output:
+        print(f"RGB image saved at: {output['rgb_image']}")
+        print(f"Depth image saved at: {output['depth_image']}")
+    else:
+        print("Failed to capture images.")
 
 # Function to initialize and configure the RealSense camera pipeline
 def initialize_camera():
@@ -19,28 +45,32 @@ def initialize_camera():
 
 # Function to capture RGB and depth frames
 def capture_frames(pipeline):
-    # Wait for a coherent pair of frames: depth and color
-    frames = pipeline.wait_for_frames()
-    color_frame = frames.get_color_frame()
-    depth_frame = frames.get_depth_frame()
-    
-    if not depth_frame or not color_frame:
+    try:
+        # Wait for a coherent pair of frames: depth and color
+        frames = pipeline.wait_for_frames()
+        color_frame = frames.get_color_frame()
+        depth_frame = frames.get_depth_frame()
+        
+        if not depth_frame or not color_frame:
+            return None, None
+        
+        # Convert frames to numpy arrays
+        color_image = np.asanyarray(color_frame.get_data())
+        depth_image = np.asanyarray(depth_frame.get_data())
+        
+        return color_image, depth_image
+    except RuntimeError as e:
+        print(f"Runtime error while waiting for frames: {e}")
         return None, None
-    
-    # Convert frames to numpy arrays
-    color_image = np.asanyarray(color_frame.get_data())
-    depth_image = np.asanyarray(depth_frame.get_data())
-    
-    return color_image, depth_image
 
 # Function to save images to a folder
-def save_images(color_image, depth_image, output_folder='output_images'):
+def save_images(color_image, depth_image, output_folder=OUTPUT_PATH):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     
     # Generate filenames
-    rgb_image_filename = os.path.join(output_folder, 'rgb_image.png')
-    depth_image_filename = os.path.join(output_folder, 'depth_image_colormap.png')
+    rgb_image_filename = os.path.join(output_folder, 'rgb_image_' + str(create_photo_id()) + '.png')
+    depth_image_filename = os.path.join(output_folder, 'depth_image_colormap_' + str(create_photo_id()) + '.png')
     
     # Apply colormap to depth image for visualization
     depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
@@ -57,7 +87,7 @@ def release_camera(pipeline):
     cv2.destroyAllWindows()
 
 # Example function to capture and save a single frame (to be used in a frontend or other scripts)
-def capture_and_save_single_frame(output_folder='output_images'):
+def capture_and_save_single_frame(output_folder=OUTPUT_PATH):
     pipeline = initialize_camera()
     
     try:
@@ -70,11 +100,8 @@ def capture_and_save_single_frame(output_folder='output_images'):
     finally:
         release_camera(pipeline)
 
+'''
 # Example usage
 if __name__ == "__main__":
-    output = capture_and_save_single_frame()
-    if output:
-        print(f"RGB image saved at: {output['rgb_image']}")
-        print(f"Depth image saved at: {output['depth_image']}")
-    else:
-        print("Failed to capture images.")
+    take_photo()
+'''
