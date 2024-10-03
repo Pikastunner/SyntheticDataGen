@@ -9,16 +9,21 @@ import os
 
 OUTPUT_PATH = "input_images"
 
-def create_photo_id():
-    files = os.listdir(OUTPUT_PATH)
-    return int(len(files) / 2)
-
 # Function to tell whether camera is connected
 def is_camera_connected():
     context = rs.context()
     if len(context.devices) == 0:
         return False
     return True
+
+# Function to return preview of camera
+def preview_image():
+    pipeline = initialize_camera()
+    try:
+        color_image, depth_image = capture_frames(pipeline)
+        return color_image, depth_image
+    finally:
+        release_camera(pipeline)
 
 # Function to take a photo and then save it to folder
 def take_photo():
@@ -28,6 +33,13 @@ def take_photo():
         print(f"Depth image saved at: {output['depth_image']}")
     else:
         print("Failed to capture images.")
+
+
+
+# Helper function to create unique id
+def create_image_id():
+    files = os.listdir(OUTPUT_PATH)
+    return int(len(files) / 2)
 
 # Function to initialize and configure the RealSense camera pipeline
 def initialize_camera():
@@ -69,8 +81,8 @@ def save_images(color_image, depth_image, output_folder=OUTPUT_PATH):
         os.makedirs(output_folder)
     
     # Generate filenames
-    rgb_image_filename = os.path.join(output_folder, 'rgb_image_' + str(create_photo_id()) + '.png')
-    depth_image_filename = os.path.join(output_folder, 'depth_image_colormap_' + str(create_photo_id()) + '.png')
+    rgb_image_filename = os.path.join(output_folder, 'rgb_image_' + str(create_image_id()) + '.png')
+    depth_image_filename = os.path.join(output_folder, 'depth_image_colormap_' + str(create_image_id()) + '.png')
     
     # Apply colormap to depth image for visualization
     depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
