@@ -53,3 +53,10 @@ def remove_background_from_images(image):
 
     pass
 
+
+if __name__ == "__main__":
+    cylinder_imgs = [1,2,3,4]
+    path_to_images = "test_images/"
+
+    pass
+
