@@ -84,10 +84,15 @@ class BackgroundRemover(QWidget):
         # Clear the table and set rows
         self.table_widget.setRowCount(min(len(self.rgb_images), len(self.depth_images)))
 
+        extracted_objects = []  # List to store extracted objects
+
         for i in range(min(len(self.rgb_images), len(self.depth_images))):
             # Create mask and extract object with current parameters
             mask = self.create_mask_with_rembg(self.rgb_images[i])
             object_extracted = self.apply_mask(self.rgb_images[i], mask)
+            
+            # Store the extracted object for later emission
+            extracted_objects.append(object_extracted)
 
             # Display RGB image
             self.display_image_in_table(self.rgb_images[i], i, 0)
@@ -98,8 +103,9 @@ class BackgroundRemover(QWidget):
             # Display Extracted Object
             self.display_image_in_table(object_extracted, i, 2)
 
+        # Emit extracted objects instead of RGB images
         if len(self.depth_images) and len(self.rgb_images):
-            self.update_complete.emit(self.rgb_images, self.depth_images)  # Emit with images
+            self.update_complete.emit(extracted_objects, self.depth_images)  # Emit with extracted objects
 
     def display_image_in_table(self, image, row, column, cmap=None):
         # Convert image for QPixmap
