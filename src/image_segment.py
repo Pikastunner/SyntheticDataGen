@@ -1,7 +1,8 @@
 import sys
 import numpy as np
 import cv2
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QFileDialog, QTableWidget, QHeaderView, QLabel
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, 
+                             QFileDialog, QTableWidget, QHeaderView, QLabel, QSlider, QHBoxLayout, QSpinBox, QGroupBox)
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
 
@@ -12,6 +13,12 @@ class ImageProcessingApp(QMainWindow):
         # Set up the main window
         self.setWindowTitle("Image Processing App")
         self.setGeometry(100, 100, 1000, 600)
+
+        # Initialize the green threshold values first
+        self.lower_green = np.array([35, 20, 30])  # default lower threshold
+        self.upper_green = np.array([86, 255, 255])  # default upper threshold
+        self.close_kernel_size = 20  # default kernel size for closing
+
 
         # Create central widget and layout
         self.central_widget = QWidget(self)
@@ -27,6 +34,9 @@ class ImageProcessingApp(QMainWindow):
         self.load_depth_button.clicked.connect(self.load_depth_images)
         self.layout.addWidget(self.load_depth_button)
 
+        # Create control panel for mask adjustments
+        self.create_control_panel()
+
         # Create a table to display the images
         self.table_widget = QTableWidget(self)
         self.table_widget.setColumnCount(3)  # RGB, Depth, Extracted Object
@@ -41,10 +51,58 @@ class ImageProcessingApp(QMainWindow):
         self.table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table_widget.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
-
-        # Variables to hold images
+        # Variables to hold images and parameters
         self.rgb_images = []
         self.depth_images = []
+        self.lower_green = np.array([35, 20, 30])  # default lower threshold
+        self.upper_green = np.array([86, 255, 255])  # default upper threshold
+        self.close_kernel_size = 20  # default kernel size for closing
+
+    def create_control_panel(self):
+        # GroupBox for adjusting threshold values
+        groupbox = QGroupBox("Mask Adjustment Controls")
+        control_layout = QHBoxLayout()
+
+        # Lower and upper green threshold sliders
+        self.lower_slider = QSlider(Qt.Horizontal)
+        self.lower_slider.setMinimum(0)
+        self.lower_slider.setMaximum(255)
+        self.lower_slider.setValue(self.lower_green[0])
+        self.lower_slider.valueChanged.connect(self.update_mask_params)
+
+        self.upper_slider = QSlider(Qt.Horizontal)
+        self.upper_slider.setMinimum(0)
+        self.upper_slider.setMaximum(255)
+        self.upper_slider.setValue(self.upper_green[0])
+        self.upper_slider.valueChanged.connect(self.update_mask_params)
+
+        control_layout.addWidget(QLabel("Lower Green Threshold"))
+        control_layout.addWidget(self.lower_slider)
+        control_layout.addWidget(QLabel("Upper Green Threshold"))
+        control_layout.addWidget(self.upper_slider)
+
+        # Kernel size spinner for morphological closing
+        self.kernel_spinbox = QSpinBox()
+        self.kernel_spinbox.setMinimum(1)
+        self.kernel_spinbox.setMaximum(50)
+        self.kernel_spinbox.setValue(self.close_kernel_size)
+        self.kernel_spinbox.valueChanged.connect(self.update_mask_params)
+
+        control_layout.addWidget(QLabel("Close Kernel Size"))
+        control_layout.addWidget(self.kernel_spinbox)
+
+        groupbox.setLayout(control_layout)
+        self.layout.addWidget(groupbox)
+
+    def update_mask_params(self):
+        # Update threshold values and kernel size from UI
+        self.lower_green[0] = self.lower_slider.value()
+        self.upper_green[0] = self.upper_slider.value()
+        self.close_kernel_size = self.kernel_spinbox.value()
+
+        # Update the table with new mask and extraction
+        if self.rgb_images:
+            self.update_table()
 
     def load_rgb_images(self):
         # Open file dialog to load multiple RGB images
@@ -65,7 +123,7 @@ class ImageProcessingApp(QMainWindow):
         self.table_widget.setRowCount(min(len(self.rgb_images), len(self.depth_images)))
 
         for i in range(min(len(self.rgb_images), len(self.depth_images))):
-            # Create mask and extract object
+            # Create mask and extract object with current parameters
             mask = self.create_mask_from_rgb(self.rgb_images[i])
             mask_cleaned = self.remove_mask_boundary_objects(self.reduce_noise(mask, kernel_size=(9, 9)))
             object_extracted = self.apply_mask(self.rgb_images[i], mask_cleaned)
@@ -85,11 +143,10 @@ class ImageProcessingApp(QMainWindow):
             qimage = QImage(image, image.shape[1], image.shape[0], image.strides[0], QImage.Format_Grayscale8)
         else:
             qimage = QImage(image.data, image.shape[1], image.shape[0], QImage.Format_RGB888)
-        
-        # Dynamically calculate the scaling based on the original image size
+
         label_size = 400  # Increased from 200 for better visibility
         pixmap = QPixmap.fromImage(qimage).scaled(label_size, label_size, Qt.KeepAspectRatio)
-        
+
         # Create a label to display the pixmap
         label = QLabel(self)
         label.setPixmap(pixmap)
@@ -97,16 +154,13 @@ class ImageProcessingApp(QMainWindow):
 
         # Set the row height to fit the scaled image
         self.table_widget.setRowHeight(row, pixmap.height())
-        
+
         # Add the label to the table
         self.table_widget.setCellWidget(row, column, label)
 
-
     def create_mask_from_rgb(self, rgb_image):
         hsv = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HSV)
-        lower_green = np.array([35, 20, 30])
-        upper_green = np.array([86, 255, 255])
-        mask = cv2.inRange(hsv, lower_green, upper_green)
+        mask = cv2.inRange(hsv, self.lower_green, self.upper_green)
         mask = cv2.bitwise_not(mask)
         return mask
 
@@ -118,7 +172,7 @@ class ImageProcessingApp(QMainWindow):
     def reduce_noise(self, image, kernel_size=(5, 5)):
         kernel = np.ones(kernel_size, np.uint8)
         cleaned_image = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)
-        kernel_close = np.ones((20, 20), np.uint8)
+        kernel_close = np.ones((self.close_kernel_size, self.close_kernel_size), np.uint8)
         cleaned_image = cv2.morphologyEx(cleaned_image, cv2.MORPH_CLOSE, kernel_close)
         return cleaned_image
 
