@@ -6,6 +6,10 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
 
+from rembg import remove
+from PIL import Image
+
+
 class ImageProcessingApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -34,9 +38,6 @@ class ImageProcessingApp(QMainWindow):
         self.load_depth_button.clicked.connect(self.load_depth_images)
         self.layout.addWidget(self.load_depth_button)
 
-        # Create control panel for mask adjustments
-        self.create_control_panel()
-
         # Create a table to display the images
         self.table_widget = QTableWidget(self)
         self.table_widget.setColumnCount(3)  # RGB, Depth, Extracted Object
@@ -54,52 +55,9 @@ class ImageProcessingApp(QMainWindow):
         # Variables to hold images and parameters
         self.rgb_images = []
         self.depth_images = []
-        self.lower_green = np.array([35, 20, 30])  # default lower threshold
-        self.upper_green = np.array([86, 255, 255])  # default upper threshold
-        self.close_kernel_size = 20  # default kernel size for closing
 
-    def create_control_panel(self):
-        # GroupBox for adjusting threshold values
-        groupbox = QGroupBox("Mask Adjustment Controls")
-        control_layout = QHBoxLayout()
-
-        # Lower and upper green threshold sliders
-        self.lower_slider = QSlider(Qt.Horizontal)
-        self.lower_slider.setMinimum(0)
-        self.lower_slider.setMaximum(255)
-        self.lower_slider.setValue(self.lower_green[0])
-        self.lower_slider.valueChanged.connect(self.update_mask_params)
-
-        self.upper_slider = QSlider(Qt.Horizontal)
-        self.upper_slider.setMinimum(0)
-        self.upper_slider.setMaximum(255)
-        self.upper_slider.setValue(self.upper_green[0])
-        self.upper_slider.valueChanged.connect(self.update_mask_params)
-
-        control_layout.addWidget(QLabel("Lower Green Threshold"))
-        control_layout.addWidget(self.lower_slider)
-        control_layout.addWidget(QLabel("Upper Green Threshold"))
-        control_layout.addWidget(self.upper_slider)
-
-        # Kernel size spinner for morphological closing
-        self.kernel_spinbox = QSpinBox()
-        self.kernel_spinbox.setMinimum(1)
-        self.kernel_spinbox.setMaximum(50)
-        self.kernel_spinbox.setValue(self.close_kernel_size)
-        self.kernel_spinbox.valueChanged.connect(self.update_mask_params)
-
-        control_layout.addWidget(QLabel("Close Kernel Size"))
-        control_layout.addWidget(self.kernel_spinbox)
-
-        groupbox.setLayout(control_layout)
-        self.layout.addWidget(groupbox)
 
     def update_mask_params(self):
-        # Update threshold values and kernel size from UI
-        self.lower_green[0] = self.lower_slider.value()
-        self.upper_green[0] = self.upper_slider.value()
-        self.close_kernel_size = self.kernel_spinbox.value()
-
         # Update the table with new mask and extraction
         if self.rgb_images:
             self.update_table()
@@ -124,9 +82,8 @@ class ImageProcessingApp(QMainWindow):
 
         for i in range(min(len(self.rgb_images), len(self.depth_images))):
             # Create mask and extract object with current parameters
-            mask = self.create_mask_from_rgb(self.rgb_images[i])
-            mask_cleaned = self.remove_mask_boundary_objects(self.reduce_noise(mask, kernel_size=(9, 9)))
-            object_extracted = self.apply_mask(self.rgb_images[i], mask_cleaned)
+            mask = self.create_mask_with_rembg(self.rgb_images[i])
+            object_extracted = self.apply_mask(self.rgb_images[i], mask)
 
             # Display RGB image
             self.display_image_in_table(self.rgb_images[i], i, 0)
@@ -158,10 +115,20 @@ class ImageProcessingApp(QMainWindow):
         # Add the label to the table
         self.table_widget.setCellWidget(row, column, label)
 
-    def create_mask_from_rgb(self, rgb_image):
-        hsv = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HSV)
-        mask = cv2.inRange(hsv, self.lower_green, self.upper_green)
-        mask = cv2.bitwise_not(mask)
+    # Function to create a mask using rembg
+    def create_mask_with_rembg(self, rgb_image):
+        # Convert the image to a PIL image format for rembg processing
+        pil_image = Image.fromarray(rgb_image)
+        
+        # Use rembg to remove the background
+        result_image = remove(pil_image)
+        
+        # Convert the result back to an OpenCV format (numpy array)
+        result_np = np.array(result_image)
+        
+        # Extract the alpha channel (background removed areas will be transparent)
+        mask = result_np[:, :, 3]  # Alpha channel is the fourth channel
+        
         return mask
 
     def apply_mask(self, rgb_image, mask):
@@ -175,17 +142,6 @@ class ImageProcessingApp(QMainWindow):
         kernel_close = np.ones((self.close_kernel_size, self.close_kernel_size), np.uint8)
         cleaned_image = cv2.morphologyEx(cleaned_image, cv2.MORPH_CLOSE, kernel_close)
         return cleaned_image
-
-    def remove_mask_boundary_objects(self, mask):
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
-        output_mask = np.zeros_like(mask)
-        for i in range(1, num_labels):
-            if stats[i, cv2.CC_STAT_LEFT] == 0 or stats[i, cv2.CC_STAT_TOP] == 0 or \
-               stats[i, cv2.CC_STAT_LEFT] + stats[i, cv2.CC_STAT_WIDTH] == mask.shape[1] or \
-               stats[i, cv2.CC_STAT_TOP] + stats[i, cv2.CC_STAT_HEIGHT] == mask.shape[0]:
-                continue
-            output_mask[labels == i] = 255
-        return output_mask
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
