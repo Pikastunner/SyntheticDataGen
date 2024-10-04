@@ -190,7 +190,6 @@ class GenerateWidget(QWidget):
     def on_generate(self):
         # Action to perform when the button is clicked
         print("Generate button clicked!")
-        # Here you can implement logic to generate based on the images
 
 
 
