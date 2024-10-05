@@ -1,30 +1,34 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QGridLayout, QListWidget, QListWidgetItem
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QSpacerItem, QSizePolicy, QListWidget, QListWidgetItem
+from PyQt5.QtCore import QTimer
 from PyQt5.QtGui import QPixmap, QImage
-import cv2
-import numpy as np
-import os
 
-from camera import take_photo  
+import cv2
+
+from camera import take_photo, initialize_camera, release_camera, preview_image
 
 class CameraPreview(QWidget):
     def __init__(self):
         super().__init__()
         self.photos = []  
+        self.cap = None
         self.initUI()
 
     def initUI(self):
 
-        self.setWindowTitle('Camera preview')
-        self.setGeometry(100, 100, 1000, 700)  # Increased window size
+        # Set timer to get live feed of camera
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_camera_feed)
+        self.timer.start(16)  
 
+        self.setWindowTitle('Camera preview')
+        self.setGeometry(100, 100, 1000, 700)  
 
         main_layout = QVBoxLayout()
 
         camera_label = QLabel('Camera preview')
-
         instruction_label = QLabel('Press SPACE to take a photo\nMake sure to take multiple shots at different angles and ensure that the background is green')
+
 
         self.camera_view = QLabel(self)
         self.camera_view.setStyleSheet("background-color: black;")
@@ -55,13 +59,43 @@ class CameraPreview(QWidget):
 
         self.setLayout(main_layout)
 
-    def take_photo(self):
-        take_photo_output = take_photo()
-        
-        
+        self.start_camera()
+    
+    def start_camera(self):
+        self.pipeline = initialize_camera()
 
+    def update_camera_feed(self):
+        if self.pipeline is not None:
+            color_image, depth_image = preview_image() 
+            
+            # Convert the color image to QImage
+            qt_image = self.convert_to_qimage(color_image)
+
+            # Convert the QImage to a QPixmap and display it
+            pixmap = QPixmap.fromImage(qt_image)
+            self.camera_view.setPixmap(pixmap.scaled(self.camera_view.size(), Qt.KeepAspectRatio))
+
+    def convert_to_qimage(self, image):
+        # Assuming the image is in RGB format
+        h, w, ch = image.shape
+        bytes_per_line = ch * w
+        return QImage(image.data, w, h, bytes_per_line, QImage.Format_RGB888)
+
+
+    # Populate this function with backend api functionality
+    def take_photo(self):
+        if self.pipeline is not None:
+            color_image, _ = preview_image() 
+            
+            qt_image = self.convert_to_qimage(color_image)
+
+            pixmap = QPixmap.fromImage(qt_image)
+            self.camera_view.setPixmap(pixmap.scaled(self.camera_view.size(), Qt.KeepAspectRatio))
+
+            self.photos.append(pixmap) 
+        
+    
     def open_photo_preview(self):
-        # Open the preview window and pass the list of photos
         self.preview_window = PhotoPreview(self.photos)
         self.preview_window.show()
 
