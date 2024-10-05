@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWid
 from PyQt5.QtGui import QImage, QPixmap
 import pyrealsense2 as rs
 
-from camera import initialize_camera
+from camera import initialize_camera, capture_frames
 
 class PreviewScreen(QMainWindow):
     def __init__(self):
@@ -27,7 +27,7 @@ class PreviewScreen(QMainWindow):
 
     
     def timerEvent(self, event):
-        color_image = self.capture_frames()
+        color_image = capture_frames()
         if color_image is not None:
             # Convert the image to QImage format
             height, width, channel = color_image.shape
