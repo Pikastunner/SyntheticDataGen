@@ -45,7 +45,7 @@ class WelcomeScreen(QWidget):
         content_area = QWidget()
         layout = QVBoxLayout()
 
-        # Create the text area
+        # Create the text area in the content area
         top_half = QWidget()
         top_layout = QVBoxLayout()
         bottom_half = QWidget()
@@ -92,8 +92,11 @@ class WelcomeScreen(QWidget):
 
         # Create the main layout
         main_layout = QVBoxLayout()
-        main_layout.addLayout(top_area, 91)
-        main_layout.addLayout(bottom_area, 9)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        main_layout.addLayout(top_area, 90)
+        main_layout.addLayout(bottom_area, 10)
         
         self.setLayout(main_layout)
     
