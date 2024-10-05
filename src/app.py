@@ -68,21 +68,17 @@ class CameraPreview(QWidget):
         if self.pipeline is not None:
             color_image, depth_image = preview_image() 
             
-            # Convert the color image to QImage
             qt_image = self.convert_to_qimage(color_image)
-
-            # Convert the QImage to a QPixmap and display it
             pixmap = QPixmap.fromImage(qt_image)
             self.camera_view.setPixmap(pixmap.scaled(self.camera_view.size(), Qt.KeepAspectRatio))
 
     def convert_to_qimage(self, image):
-        # Assuming the image is in RGB format
         h, w, ch = image.shape
         bytes_per_line = ch * w
         return QImage(image.data, w, h, bytes_per_line, QImage.Format_RGB888)
 
 
-    # Populate this function with backend api functionality
+    # Called on button press
     def take_photo(self):
         if self.pipeline is not None:
             color_image, _ = preview_image() 
@@ -94,7 +90,7 @@ class CameraPreview(QWidget):
 
             self.photos.append(pixmap) 
         
-    
+    # Preview Image Screen
     def open_photo_preview(self):
         self.preview_window = PhotoPreview(self.photos)
         self.preview_window.show()
