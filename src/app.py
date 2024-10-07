@@ -9,10 +9,13 @@ import pyrealsense2 as rs
 
 from camera import preview_image, capture_and_save_single_frame
 
+from Window_CapturedPhotoReview import CapturedPhotoReviewScreen
+
 # PreviewScreen class for the camera feed preview
 class PreviewScreen(QMainWindow):
-    def __init__(self):
+    def __init__(self, parent):
         super().__init__()
+        self.parent = parent
         self.setWindowTitle("Preview Camera Feed")
 
         self.image_label = QLabel(self)
@@ -65,6 +68,7 @@ class PreviewScreen(QMainWindow):
     def go_to_next_page(self):
         """Switch to the next page."""
         print('next page')
+        self.parent.setCurrentIndex(2)
 
 
 # Function to check if camera is connected
@@ -199,11 +203,13 @@ class MainApp(QMainWindow):
         
         # Welcome screen and preview screen
         self.welcome_screen = WelcomeScreen(self.central_widget)
-        self.preview_screen = PreviewScreen()
+        self.preview_screen = PreviewScreen(self.central_widget)
+        self.screen3 = CapturedPhotoReviewScreen(self.central_widget)
 
         # Add screens to the stacked widget
         self.central_widget.addWidget(self.welcome_screen)
         self.central_widget.addWidget(self.preview_screen)
+        self.central_widget.addWidget(self.screen3)
         
         self.central_widget.setCurrentIndex(0)  # Start with Welcome Screen
 

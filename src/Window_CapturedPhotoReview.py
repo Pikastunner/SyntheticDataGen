@@ -4,16 +4,18 @@ import re
 from PyQt5.QtWidgets import (
     QApplication, QPushButton, QVBoxLayout,
     QHBoxLayout, QWidget, QLabel, QSpacerItem,
-    QSizePolicy, QFrame
+    QSizePolicy, QFrame, QStackedWidget, QMainWindow
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 from camera import OUTPUT_PATH
+# OUTPUT_PATH = "../test_images"
 
 # Component 5
-class CapturedPhotoReview(QWidget):
-    def __init__(self):
+class CapturedPhotoReviewScreen(QWidget):
+    def __init__(self, parent):
         super().__init__()
+        self.parent = parent
 
         self.resize(900, 600)
         sortKey = lambda s: int(re.match(r".*_(\d+).png", s).group(1))
@@ -167,18 +169,31 @@ class CapturedPhotoReview(QWidget):
         self.main_img_path = self.img_paths[i + 1]
         self.display_images()
 
-    # TODO
-    def next_page(self):
-        print("Next Page")
+    def prev_page(self):
+        self.parent.setCurrentIndex(1)
 
     # TODO
-    def prev_page(self):
+    def next_page(self):
         print("Previous Page")
 
 if __name__ == "__main__":
-    # Run the page on its own
-    OUTPUT_PATH = "test_images"
+    # Run the CapturedPhotoReviewScreen on its own
+    class MainWindow(QMainWindow):
+        def __init__(self):
+            super().__init__()
+
+            self.setWindowTitle("Photo Review Application")
+            self.setGeometry(100, 100, 400, 400)
+
+            # Stacked widget to manage the multiple pages
+            self.stacked_widget = QStackedWidget()
+            self.setCentralWidget(self.stacked_widget)
+
+            # Initialize pages
+            self.photo_review_page = CapturedPhotoReviewScreen(self)
+            self.stacked_widget.addWidget(self.photo_review_page)
+
     app = QApplication(sys.argv)
-    window = CapturedPhotoReview()
-    window.show()
+    main_window = MainWindow()
+    main_window.show()
     sys.exit(app.exec_())
