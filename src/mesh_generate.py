@@ -8,22 +8,14 @@ import sys
 import numpy as np
 import cv2
 import cv2.aruco as aruco
-from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QTableWidget, 
-                             QHeaderView, QLabel, QFileDialog)
-from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt, pyqtSignal
-from rembg import remove
-from PIL import Image
+from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout)
 
 from image_segment import BackgroundRemover
-
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-import matplotlib as plt
-from matplotlib import cm
-
+import open3d as o3d
 
 class MeshGenerator(QWidget):
     def __init__(self):
@@ -65,89 +57,59 @@ class MeshGenerator(QWidget):
         self.generate_mesh(rgb_image, depth_image)
 
 
-    # def generate_mesh(self, rgb_image, depth_image):
-    #     # Resize the RGB image to match the depth image size
-    #     height, width = depth_image.shape
-    #     if rgb_image.shape[:2] != (height, width):
-    #         rgb_image_resized = cv2.resize(rgb_image, (width, height))
-    #     else:
-    #         rgb_image_resized = rgb_image
-
-    #     # Generate the mesh grid
-    #     x = np.arange(0, width)
-    #     y = np.arange(0, height)
-    #     X, Y = np.meshgrid(x, y)
-    #     Z = depth_image
-
-    #     # Normalize the RGB values to the range [0, 1]
-    #     rgb_norm = rgb_image_resized / 255.0
-
-    #     # Get the figure and axis from the canvas
-    #     ax = self.canvas.figure.add_subplot(111, projection='3d')
-
-    #     # Clear the axis for new plot
-    #     ax.clear()
-
-    #     # Plot the 3D surface mesh using RGB as face colors
-    #     ax.plot_surface(X, Y, Z, facecolors=rgb_norm, rstride=1, cstride=1, antialiased=False)
-
-    #     # Refresh the canvas to update the display
-    #     self.canvas.draw()
     def generate_mesh(self, rgb_image, depth_image):
-        # Resize the RGB image to match the depth image size
-        height, width = depth_image.shape
-        if rgb_image.shape[:2] != (height, width):
-            rgb_image_resized = cv2.resize(rgb_image, (width, height))
-        else:
-            rgb_image_resized = rgb_image
-
         # Detect ArUco markers in the RGB image
-        aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)  # Adjust the dictionary based on your setup
-        aruco_params = aruco.DetectorParameters_create()
-        gray_image = cv2.cvtColor(rgb_image_resized, cv2.COLOR_BGR2GRAY)
-        corners, ids, _ = aruco.detectMarkers(gray_image, aruco_dict, parameters=aruco_params)
+        gray_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2GRAY)
+        dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
+        parameters = aruco.DetectorParameters()
+        detector = aruco.ArucoDetector(dictionary, parameters)
+        corners, ids, _ = detector.detectMarkers(gray_image)
 
+        # store in current directory as "obj.obj and open"
+
+        # If markers detected, you can process them further
         if ids is not None:
-            print(f"Detected {len(ids)} ArUco marker(s) with IDs: {ids.flatten()}")
-
-            # Iterate through each detected marker
-            for i, marker_corners in enumerate(corners):
-                # Get the marker's corners and ID
-                marker_corners = marker_corners.reshape((4, 2))
-                top_left, top_right, bottom_right, bottom_left = marker_corners
-                marker_id = ids[i][0]
-
-                # Optionally draw the detected marker
-                cv2.polylines(rgb_image_resized, [np.int32(marker_corners)], isClosed=True, color=(0, 255, 0), thickness=2)
-                cv2.putText(rgb_image_resized, f'ID: {marker_id}', (int(top_left[0]), int(top_left[1]) - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-                # Example: Use marker's top-left corner as a reference for mesh alignment
-                # You can use the corners to adjust or scale your depth map, mesh, or RGB image
-
-        else:
-            print("No ArUco markers detected.")
-
-        # Continue with generating the mesh grid
-        x = np.arange(0, width)
-        y = np.arange(0, height)
-        X, Y = np.meshgrid(x, y)
-        Z = depth_image
-
-        # Normalize the RGB values to the range [0, 1]
-        rgb_norm = rgb_image_resized / 255.0
-
-        # Get the figure and axis from the canvas
-        ax = self.canvas.figure.add_subplot(111, projection='3d')
-
-        # Clear the axis for new plot
-        ax.clear()
-
-        # Plot the 3D surface mesh using RGB as face colors
-        ax.plot_surface(X, Y, Z, facecolors=rgb_norm, rstride=1, cstride=1, antialiased=False)
-
-        # Refresh the canvas to update the display
-        self.canvas.draw()
+            print(f"Detected ArUco markers: {ids}")
+        
+        # Generate point cloud from RGB and depth images
+        h, w = depth_image.shape
+        fx, fy = 525.0, 525.0  # Example focal lengths, adjust as necessary
+        cx, cy = w / 2, h / 2
+        
+        # Create an empty point cloud
+        points = []
+        colors = []
+        
+        for v in range(h):
+            for u in range(w):
+                Z = depth_image[v, u] / 1000.0  # Convert depth to meters
+                if Z == 0:  # Skip points with no depth info
+                    continue
+                X = (u - cx) * Z / fx
+                Y = (v - cy) * Z / fy
+                points.append([X, Y, Z])
+                colors.append(rgb_image[v, u] / 255.0)  # Normalize color
+        
+        # Convert points and colors to numpy arrays
+        points = np.array(points)
+        colors = np.array(colors)
+        
+        # Create an Open3D PointCloud object
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        pcd.colors = o3d.utility.Vector3dVector(colors)
+        
+        # Estimate normals for the point cloud
+        pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+        
+        # Create mesh using Poisson surface reconstruction
+        mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
+        
+        # Save the mesh as an .obj file
+        o3d.io.write_triangle_mesh("object_mesh.obj", mesh)
+        
+        # Optional: Visualize the mesh
+        o3d.visualization.draw_geometries([mesh])
 
 
 if __name__ == "__main__":
