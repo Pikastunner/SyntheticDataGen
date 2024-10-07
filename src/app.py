@@ -38,7 +38,7 @@ class PreviewScreen(QMainWindow):
         self.saved_depth_image_filenames = []
 
     def timerEvent(self, event):
-        color_image = preview_image()
+        color_image, _ = preview_image()
         if color_image is not None:
             self.current_frame = color_image  # Store the current frame
             # Convert the image to QImage format
@@ -51,6 +51,7 @@ class PreviewScreen(QMainWindow):
         """Save the current frame as an image file."""
         photo = capture_and_save_single_frame("input_images")
         if photo is not None:
+            print("photo taken") #debug msg
             self.saved_rgb_image_filenames.append(photo['rgb_image'])
             self.saved_depth_image_filenames.append(photo['depth_image'])
 
