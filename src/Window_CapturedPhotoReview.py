@@ -8,9 +8,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
-# from camera import OUTPUT_PATH
-OUTPUT_PATH = "test_images"
+from camera import OUTPUT_PATH
 
+# Component 5
 class CapturedPhotoReview(QWidget):
     def __init__(self):
         super().__init__()
@@ -177,6 +177,7 @@ class CapturedPhotoReview(QWidget):
 
 if __name__ == "__main__":
     # Run the page on its own
+    OUTPUT_PATH = "test_images"
     app = QApplication(sys.argv)
     window = CapturedPhotoReview()
     window.show()
