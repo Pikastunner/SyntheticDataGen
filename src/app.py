@@ -9,7 +9,7 @@ import pyrealsense2 as rs
 
 from camera import preview_image, capture_and_save_single_frame
 
-
+# PreviewScreen class for the camera feed preview
 class PreviewScreen(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -53,7 +53,7 @@ class PreviewScreen(QMainWindow):
         """Save the current frame as an image file."""
         photo = capture_and_save_single_frame("input_images")
         if photo is not None:
-            print("photo taken") #debug msg
+            print("photo taken")  # debug message
             self.saved_rgb_image_filenames.append(photo['rgb_image'])
             self.saved_depth_image_filenames.append(photo['depth_image'])
 
@@ -65,6 +65,7 @@ class PreviewScreen(QMainWindow):
     def go_to_next_page(self):
         """Switch to the next page."""
         print('next page')
+
 
 # Function to check if camera is connected
 def is_camera_connected():
@@ -93,7 +94,7 @@ def load_stylesheet(filename):
     stream = QTextStream(file)
     return stream.readAll()
 
-# Welcome Screen
+# WelcomeScreen class for the initial welcome screen
 class WelcomeScreen(QWidget):
     def __init__(self, parent):
         super().__init__()
@@ -196,11 +197,16 @@ class MainApp(QMainWindow):
         self.central_widget = QStackedWidget()
         self.setCentralWidget(self.central_widget)
         
+        # Welcome screen and preview screen
         self.welcome_screen = WelcomeScreen(self.central_widget)
-        
+        self.preview_screen = PreviewScreen()
+
+        # Add screens to the stacked widget
         self.central_widget.addWidget(self.welcome_screen)
+        self.central_widget.addWidget(self.preview_screen)
         
         self.central_widget.setCurrentIndex(0)  # Start with Welcome Screen
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
@@ -212,4 +218,3 @@ if __name__ == '__main__':
     main_app = MainApp()
     main_app.show()
     sys.exit(app.exec_())
-
