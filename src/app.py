@@ -9,8 +9,10 @@ from camera import is_camera_connected
 
 
 class PreviewScreen(QMainWindow):
-    def __init__(self):
+    def __init__(self, parent):
         super().__init__()
+        self.parent = parent
+
         self.setWindowTitle("Preview Camera Feed")
 
         self.image_label = QLabel(self)
@@ -32,19 +34,24 @@ class PreviewScreen(QMainWindow):
         self.setCentralWidget(container)
 
         # Create CameraWorker thread
-        self.camera_worker = CameraWorker()
-
-        # Connect the frameCaptured signal to the update_image method
-        self.camera_worker.frameCaptured.connect(self.update_image)
-
-        # Start the camera worker thread
-        self.camera_worker.start()
+        self.camera_worker = None
 
         # Initialize the current frame variable
         self.current_frame = (None, None)
 
         self.saved_rgb_image_filenames = []
         self.saved_depth_image_filenames = []
+
+    def start_camera_worker(self):
+        if is_camera_connected():
+            # Create CameraWorker thread
+            self.camera_worker = CameraWorker()
+
+            # Connect the frameCaptured signal to the update_image method
+            self.camera_worker.frameCaptured.connect(self.update_image)
+
+            # Start the camera worker thread
+            self.camera_worker.start()
 
     def update_image(self, rgb_frame, depth_frame):
         """Update the QLabel with the new frame"""
@@ -157,6 +164,8 @@ class WelcomeScreen(QWidget):
     def check_camera(self):
         if is_camera_connected():
             self.parent.setCurrentIndex(1)  # Go to Camera Preview screen
+            preview_screen = self.parent.widget(1)  # Index 1 is the PreviewScreen
+            preview_screen.start_camera_worker()
         else:
             # Create an error message box
             error_msg = QMessageBox()
@@ -190,7 +199,7 @@ class MainApp(QMainWindow):
         
         # Welcome screen and preview screen
         self.welcome_screen = WelcomeScreen(self.central_widget)
-        self.preview_screen = PreviewScreen()
+        self.preview_screen = PreviewScreen(self.central_widget)
 
         # Add screens to the stacked widget
         self.central_widget.addWidget(self.welcome_screen)
