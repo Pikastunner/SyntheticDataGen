@@ -1,15 +1,55 @@
 import sys
 import cv2
-import numpy as np
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, 
                              QFileDialog, QMessageBox, QListWidget, QMainWindow, QStackedWidget)
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import Qt, QFile, QTextStream
+from PyQt5.QtCore import Qt, QFile, QTextStream, QThread, pyqtSignal
+
+from camera import preview_image, capture_and_save_single_frame, is_camera_connected
+
+import numpy as np
 import pyrealsense2 as rs
 
-from camera import preview_image, capture_and_save_single_frame
+from time import sleep
 
-# PreviewScreen class for the camera feed preview
+class CameraWorker(QThread):
+    frameCaptured = pyqtSignal(np.ndarray)
+
+    def __init__(self, parent=None):
+        super(CameraWorker, self).__init__(parent)
+        self.pipeline = rs.pipeline()
+        self.config = rs.config()
+        self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        self.running = False
+
+    def run(self):
+        """Run the camera capture in the thread"""
+        try:
+            self.pipeline.start(self.config)
+            self.running = True
+            while self.running:
+                try:
+                    frames = self.pipeline.wait_for_frames(10000)  # Increased timeout to 10 seconds
+                    color_frame = frames.get_color_frame()
+                    if not color_frame:
+                        continue
+                    
+                    # Convert RealSense color frame to NumPy array
+                    color_image = np.asanyarray(color_frame.get_data())
+                    
+                    # Emit the frame to the UI thread
+                    self.frameCaptured.emit(color_image)
+                except RuntimeError as e:
+                    print(f"Warning: {e}. Retrying...")
+                    sleep(1)  # Wait 1 second before retrying
+        finally:
+            self.pipeline.stop()
+
+    def stop(self):
+        """Stop the camera thread"""
+        self.running = False
+        self.wait()  # Wait for the thread to exit
+
 class PreviewScreen(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -33,59 +73,42 @@ class PreviewScreen(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
-        self.timer = self.startTimer(100)
-        self.current_frame = None  # Store the current frame for saving it later
+        # Create CameraWorker thread
+        self.camera_worker = CameraWorker()
 
-        self.saved_rgb_image_filenames = []
-        self.saved_depth_image_filenames = []
+        # Connect the frameCaptured signal to the update_image method
+        self.camera_worker.frameCaptured.connect(self.update_image)
 
-    def timerEvent(self, event):
-        color_image, _ = preview_image()
-        if color_image is not None:
-            self.current_frame = color_image  # Store the current frame
-            # Convert the image to QImage format
-            height, width, channel = color_image.shape
-            bytes_per_line = 3 * width
-            q_image = QImage(color_image.data, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
-            self.image_label.setPixmap(QPixmap.fromImage(q_image))
+        # Start the camera worker thread
+        self.camera_worker.start()
+
+    def update_image(self, frame):
+        """Update the QLabel with the new frame"""
+        # Convert BGR to RGB
+        rgb_image = frame[:, :, ::-1]  # Swap BGR to RGB
+        
+        # Convert the image to QImage format
+        height, width, channel = rgb_image.shape
+        bytes_per_line = 3 * width
+        
+        # Convert memoryview to bytes before passing to QImage
+        q_image = QImage(rgb_image.tobytes(), width, height, bytes_per_line, QImage.Format_RGB888)
+        self.image_label.setPixmap(QPixmap.fromImage(q_image))
+
 
     def take_photo(self):
         """Save the current frame as an image file."""
-        photo = capture_and_save_single_frame("input_images")
-        if photo is not None:
-            print("photo taken")  # debug message
-            self.saved_rgb_image_filenames.append(photo['rgb_image'])
-            self.saved_depth_image_filenames.append(photo['depth_image'])
+        # Add your photo-taking logic here
+        pass
 
-    def keyPressEvent(self, event):
-        """Capture the spacebar press to take a photo."""
-        if event.key() == Qt.Key_Space:
-            self.take_photo()
+    def closeEvent(self, event):
+        """Handle the window close event and stop the camera thread."""
+        self.camera_worker.stop()
+        event.accept()
 
     def go_to_next_page(self):
         """Switch to the next page."""
         print('next page')
-
-
-# Function to check if camera is connected
-def is_camera_connected():
-    try:
-        # Create a context object to manage devices
-        context = rs.context()
-
-        # Get a list of connected devices
-        devices = context.query_devices()
-
-        # Check if any devices are connected
-        if len(devices) > 0:
-            print(f"Connected devices: {len(devices)}")
-            return True
-        else:
-            print("No RealSense devices connected.")
-            return False
-    except Exception as e:
-        print(f"Error while checking devices: {str(e)}")
-        return False
 
 # Function to load the QSS file
 def load_stylesheet(filename):
