@@ -16,8 +16,10 @@ QLabel#Label2, QLabel#Label3 {
     font-size: 12px;
 }
 
+QLabel#Preprocessing_Title {
+    font-size: 18px;
+}
+
 QWidget#BottomWidget {
     background-color: #d9d9d9;
 }
-
-

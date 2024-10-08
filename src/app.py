@@ -1,6 +1,6 @@
 import sys
-from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, 
-                             QFileDialog, QMessageBox, QListWidget, QMainWindow, QStackedWidget)
+from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, 
+                             QFileDialog, QMessageBox, QListWidget, QMainWindow, QStackedWidget, QSizePolicy)
 from PyQt5.QtCore import Qt, QFile, QTextStream
 import pyrealsense2 as rs
 
@@ -81,6 +81,7 @@ class WelcomeScreen(QWidget):
         
         # Create next button with specified size and alignment
         self.next_button = QPushButton("Next")
+        self.next_button.setStyleSheet("background-color: #ededed")
         self.next_button.setFixedSize(100, 30)
         self.next_button.setObjectName("NextButton")
         self.next_button.clicked.connect(self.check_camera)
@@ -123,6 +124,196 @@ class WelcomeScreen(QWidget):
             # Execute and show the message box
             error_msg.exec_()
 
+# Preprocessing Page
+class PreprocessingScreen(QWidget):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+                
+        # Set up the initial container
+        title_layout = QVBoxLayout()
+        title_area = QWidget()
+        title_area.setStyleSheet("background-color: #d9d9d9;")
+
+        # Working within the initial container
+        title_text_layout = QVBoxLayout()
+        label = QLabel("Preprocessing")
+        label.setStyleSheet("font-size: 18px; margin: 15px;")
+        title_text_layout.addWidget(label)
+        title_area.setLayout(title_text_layout)
+
+        # Update changes to initial container
+        title_layout.addWidget(title_area)
+
+        # Set up the initial container
+        preprocessing_results_layout = QVBoxLayout()
+        preprocessing_results_area = QWidget()
+        preprocessing_results_area.setStyleSheet("background-color: #d9d9d9;")
+        
+
+        # Working within the initial container
+        preprocessing_area_layout = QHBoxLayout()
+        preprocessing_area_layout.setContentsMargins(0, 0, 0, 0)
+        preprocessing_area_layout.setSpacing(0)
+
+        background_section = QWidget()
+        background_section.setStyleSheet("margin: 15px")
+        background_layout = QVBoxLayout()
+
+        background_title = QLabel("Review removed background")
+        background_title.setStyleSheet("font-size: 12px;")
+
+        background_image = QWidget()
+        background_image.setStyleSheet("background-color: black")
+
+        # Center and reduce spacing between background_image_info and background_image_next
+        background_image_info = QLabel("Image #1 of 4")
+        background_image_info.setStyleSheet("font-size: 12px;")
+        background_image_info.setAlignment(Qt.AlignCenter)  # Center the text
+
+        background_image_next = QPushButton("Next")
+        background_image_next.setStyleSheet("background-color: #ededed")
+        background_image_next.setFixedSize(120, 55)
+
+        # Add a layout to group the info and button together
+        center_widget = QWidget()
+        center_layout = QVBoxLayout()
+
+        center_layout.addWidget(background_image_info, alignment=Qt.AlignHCenter)
+        center_layout.addWidget(background_image_next, alignment=Qt.AlignHCenter)
+        center_layout.setContentsMargins(0, 0, 0, 0)
+        center_layout.setSpacing(0)
+        center_widget.setLayout(center_layout)
+
+        # Add the widgets to the main layout
+        background_layout.addWidget(background_title, 10)
+        background_layout.addWidget(background_image, 86)
+        background_layout.addWidget(center_widget)
+
+        background_section.setLayout(background_layout)
+
+        graphical_interface_section = QWidget()
+        graphical_interface_section.setStyleSheet("margin: 15px")
+        graphical_interface_layout = QVBoxLayout()
+        graphical_interface_title = QLabel("Graphical 3D interface of input image")
+        graphical_interface_title.setStyleSheet("font-size: 12px;")
+        
+        graphical_interface_image = QWidget()
+        graphical_interface_image.setStyleSheet("background-color: black")
+        graphical_interface_fs = QPushButton("View fullscreen")
+        graphical_interface_fs.setStyleSheet("background-color: #ededed")
+
+        graphical_interface_fs.setFixedSize(150, 55)
+        graphical_interface_layout.addWidget(graphical_interface_title, 10)
+        graphical_interface_layout.addWidget(graphical_interface_image, 86)
+        graphical_interface_layout.addWidget(graphical_interface_fs, 4, alignment=Qt.AlignHCenter)
+        
+        graphical_interface_section.setLayout(graphical_interface_layout)
+
+        preprocessing_area_layout.addWidget(background_section, 55)
+        preprocessing_area_layout.addWidget(graphical_interface_section, 45)
+
+        preprocessing_results_area.setLayout(preprocessing_area_layout)
+
+        # Update changes to initial container
+        preprocessing_results_layout.addWidget(preprocessing_results_area)
+        
+        # Set up the initial container
+        directory_saving_layout = QVBoxLayout()
+        directory_saving_area = QWidget()
+        directory_saving_area.setStyleSheet("background-color: #d9d9d9;")
+        directory_saving_area.setContentsMargins(15, 15, 15, 15)
+
+        # Working within the initial container
+        directory_text_layout = QVBoxLayout()
+        directory_instructions = QLabel("Select a directory to save the synthetic data.")
+        directory_instructions.setStyleSheet("font-size: 12px;")
+
+        directory_text_layout.addWidget(directory_instructions)
+        directory_saving_area.setLayout(directory_text_layout)
+
+        # Create directory input box and browse button
+        self.directory_input = QLineEdit()
+        self.directory_input.setFixedHeight(25)  # Set the desired height
+        self.directory_input.setStyleSheet("background-color: #ededed; border: none;")
+
+        browse_button = QPushButton("Browse")
+        browse_button.setStyleSheet("background-color: #ededed;")
+        browse_button.setFixedHeight(25)  # Set the desired height
+        browse_button.clicked.connect(self.select_directory)
+
+        # Create layout for input box and button
+        directory_input_layout = QHBoxLayout()
+        directory_input_layout.addWidget(self.directory_input)
+        directory_input_layout.addWidget(browse_button)
+        directory_text_layout.addLayout(directory_input_layout)
+
+        # Update changes to initial container
+        directory_saving_layout.addWidget(directory_saving_area)
+
+        navigation_layout = QHBoxLayout()
+        navigation_area = QWidget()
+        navigation_area.setStyleSheet("background-color: #d9d9d9;")
+
+        navigation_buttons_layout = QHBoxLayout()
+
+        # Spacer to shift the buttons to the right
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        navigation_buttons_layout.addWidget(spacer)
+
+        back_button = QPushButton("Back")
+        back_button.setFixedSize(100, 30)
+        back_button.setStyleSheet("background-color: #ededed;")
+        back_button.clicked.connect(self.go_back)
+
+        next_button = QPushButton("Next")
+        next_button.setFixedSize(100, 30)
+        next_button.setStyleSheet("background-color: #ededed;")
+
+        # Add the buttons to the layout with a small gap between them
+        navigation_buttons_layout.addWidget(back_button)
+        navigation_buttons_layout.addSpacing(10)  # Set the gap between the buttons
+        navigation_buttons_layout.addWidget(next_button)
+
+        # Align buttons to the right and bottom
+        navigation_buttons_layout.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+
+        navigation_area.setLayout(navigation_buttons_layout)
+
+        navigation_layout.addWidget(navigation_area)
+        
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        main_layout.addLayout(title_layout, 10)
+        main_layout.addLayout(preprocessing_results_layout, 63)
+        main_layout.addLayout(directory_saving_layout, 17)
+        main_layout.addLayout(navigation_layout, 10)
+        
+
+        self.setLayout(main_layout)
+    
+    def view_3d_interface(self):
+        # Open fullscreen 3D preview (placeholder)
+        QMessageBox.information(self, "3D Interface", "Viewing 3D interface.")
+    
+    def select_directory(self):
+        directory = QFileDialog.getExistingDirectory(self, "Select Directory")
+        if directory:
+            self.directory_input.setText(directory)
+            # QMessageBox.information(self, "Directory Selected", f"Data will be saved to {directory}")
+    
+    def go_to_complete(self):
+        pass
+        # generate_3d_mesh()  # Simulate 3D mesh generation
+        # self.parent.setCurrentIndex(4)
+    
+    def go_back(self):
+        # This method will handle the back navigation
+        self.parent.setCurrentIndex(self.parent.currentIndex() - 1)
+
 
 # Main Application
 class MainApp(QMainWindow):
@@ -135,8 +326,10 @@ class MainApp(QMainWindow):
         self.setCentralWidget(self.central_widget)
         
         self.welcome_screen = WelcomeScreen(self.central_widget)
+        self.preprocessing_screen = PreprocessingScreen(self.central_widget)
         
         self.central_widget.addWidget(self.welcome_screen)
+        self.central_widget.addWidget(self.preprocessing_screen)
         
         self.central_widget.setCurrentIndex(0)  # Start with Welcome Screen
 
