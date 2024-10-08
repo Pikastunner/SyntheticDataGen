@@ -23,3 +23,15 @@ QLabel#Preprocessing_Title {
 QWidget#BottomWidget {
     background-color: #d9d9d9;
 }
+
+QWidget#TitleArea {
+    background-color: #d9d9d9;
+}
+
+QWidget#PreprocessingLabel {
+    font-size: 18px; margin: 15px;
+}
+
+QWidget#Preprocessing_results_area {
+    background-color: #d9d9d9;
+}
