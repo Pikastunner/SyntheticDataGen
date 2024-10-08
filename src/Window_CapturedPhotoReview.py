@@ -94,7 +94,9 @@ class CapturedPhotoReviewScreen(QWidget):
         button_layout.addStretch(1)  # Pushes the buttons to the right
 
         back_button = QPushButton("Back")
+        back_button.clicked.connect(self.go_to_back_page)
         next_button = QPushButton("Next")
+        next_button.clicked.connect(self.go_to_next_page)
 
         button_layout.addWidget(back_button)
         button_layout.addWidget(next_button)
@@ -108,7 +110,7 @@ class CapturedPhotoReviewScreen(QWidget):
         self.display_images()
 
 
-    def newPixmap(self, frame: QLabel, img_path: str | None) -> QPixmap | None:
+    def newPixmap(self, frame: QLabel, img_path: str) -> QPixmap:
         if not img_path:
             frame.clear()
             frame.setPixmap(QPixmap())
@@ -120,7 +122,7 @@ class CapturedPhotoReviewScreen(QWidget):
         )
         return pmap
 
-    def image_frame(self, img_path: str | None, width: int, length: int) -> QLabel:
+    def image_frame(self, img_path: str, width: int, length: int) -> QLabel:
         frame = QLabel(self)
         frame.setFixedSize(width, length)
         frame.setStyleSheet("border: 2px solid black;")
@@ -172,9 +174,20 @@ class CapturedPhotoReviewScreen(QWidget):
     def prev_page(self):
         self.parent.setCurrentIndex(1)
 
-    # TODO
-    def next_page(self):
-        print("Previous Page")
+
+    def go_to_back_page(self):
+        current_index = self.parent.currentIndex()
+        if current_index > 0:
+            self.parent.setCurrentIndex(current_index - 1) 
+        else:
+            print("Already on the first page")
+
+    def go_to_next_page(self):
+        current_index = self.parent.currentIndex()
+        if current_index < self.parent.count() - 1:
+            self.parent.setCurrentIndex(current_index + 1)
+        else:
+            print("Already on the last page")
 
 if __name__ == "__main__":
     # Run the CapturedPhotoReviewScreen on its own

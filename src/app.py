@@ -10,10 +10,12 @@ import pyrealsense2 as rs
 import cv2.aruco as aruco
 from rembg import remove
 from PIL import Image
+import re
 
 from camera import preview_image, capture_and_save_single_frame
 
 from Window_CapturedPhotoReview import CapturedPhotoReviewScreen
+
 
 # PreviewScreen class for the camera feed preview
 class PreviewScreen(QWidget):
@@ -67,32 +69,42 @@ class PreviewScreen(QWidget):
         """Capture the spacebar press to take a photo."""
         if event.key() == Qt.Key_Space:
             self.take_photo()
+    
+    def go_to_back_page(self):
+        current_index = self.parent.currentIndex()
+        if current_index > 0:
+            self.parent.setCurrentIndex(current_index - 1) 
+        else:
+            print("Already on the first page")
 
     def go_to_next_page(self):
-        """Switch to the next page."""
-        print('next page')
-        self.parent.setCurrentIndex(2)
+        current_index = self.parent.currentIndex()
+        if current_index < self.parent.count() - 1:
+            self.parent.setCurrentIndex(current_index + 1)
+        else:
+            print("Already on the last page")
 
 
 # Function to check if camera is connected
 def is_camera_connected():
-    try:
-        # Create a context object to manage devices
-        context = rs.context()
+    return True
+    # try:
+    #     # Create a context object to manage devices
+    #     context = rs.context()
 
-        # Get a list of connected devices
-        devices = context.query_devices()
+    #     # Get a list of connected devices
+    #     devices = context.query_devices()
 
-        # Check if any devices are connected
-        if len(devices) > 0:
-            print(f"Connected devices: {len(devices)}")
-            return True
-        else:
-            print("No RealSense devices connected.")
-            return False
-    except Exception as e:
-        print(f"Error while checking devices: {str(e)}")
-        return False
+    #     # Check if any devices are connected
+    #     if len(devices) > 0:
+    #         print(f"Connected devices: {len(devices)}")
+    #         return True
+    #     else:
+    #         print("No RealSense devices connected.")
+    #         return False
+    # except Exception as e:
+    #     print(f"Error while checking devices: {str(e)}")
+    #     return False
 
 # Function to load the QSS file
 def load_stylesheet(filename):
@@ -173,7 +185,8 @@ class WelcomeScreen(QWidget):
     
     def check_camera(self):
         if is_camera_connected():
-            self.parent.setCurrentIndex(1)  # Go to Camera Preview screen
+            self.go_to_next_page()
+            #self.parent.setCurrentIndex(1)  # Go to Camera Preview screen
         else:
             # Create an error message box
             error_msg = QMessageBox()
@@ -193,6 +206,20 @@ class WelcomeScreen(QWidget):
 
             # Execute and show the message box
             error_msg.exec_()
+        
+    def go_to_back_page(self):
+        current_index = self.parent.currentIndex()
+        if current_index > 0:
+            self.parent.setCurrentIndex(current_index - 1) 
+        else:
+            print("Already on the first page")
+
+    def go_to_next_page(self):
+        current_index = self.parent.currentIndex()
+        if current_index < self.parent.count() - 1:
+            self.parent.setCurrentIndex(current_index + 1)
+        else:
+            print("Already on the last page")
 
 # Preprocessing Page
 class PreprocessingScreen(QWidget):     
@@ -355,7 +382,7 @@ class PreprocessingScreen(QWidget):
         back_button = QPushButton("Back")
         back_button.setFixedSize(100, 30)
         back_button.setStyleSheet("background-color: #ededed;")
-        back_button.clicked.connect(self.go_back)
+        back_button.clicked.connect(self.go_to_back_page)
 
         next_button = QPushButton("Next")
         next_button.setFixedSize(100, 30)
@@ -399,10 +426,6 @@ class PreprocessingScreen(QWidget):
         pass
         # generate_3d_mesh()  # Simulate 3D mesh generation
         # self.parent.setCurrentIndex(4)
-    
-    def go_back(self):
-        # This method will handle the back navigation
-        self.parent.setCurrentIndex(self.parent.currentIndex() - 1)
 
     def move_to_next(self):
         # Increment the index and wrap around if it exceeds the number of processed images
@@ -477,7 +500,8 @@ class PreprocessingScreen(QWidget):
     def get_files_starting_with(self, folder_path, prefix):
         files = []
         for file in os.listdir(folder_path):
-            if file.startswith(prefix):
+            if re.search(rf"{prefix}_[0-9]", file):
+            #file.startswith(prefix):
                 files.append(os.path.join(folder_path, file))
         return files
     
@@ -487,18 +511,32 @@ class PreprocessingScreen(QWidget):
         return object_extracted
     
     def load_rgb_images(self):
-        folder_path = 'input_images'
+        folder_path = '../test_images'
         rgb_image_files = self.get_files_starting_with(folder_path, 'rgb_image')
         if rgb_image_files:
             rgb_images = [cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB) for filename in rgb_image_files]
             return rgb_images
 
     def load_depth_images(self):
-        folder_path = 'input_images'
+        folder_path = '../test_images'
         depth_image_files = self.get_files_starting_with(folder_path, 'depth_image')
         if depth_image_files:
             depth_images = [cv2.normalize(cv2.imread(filename, cv2.IMREAD_UNCHANGED), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) for filename in depth_image_files]
             return depth_images
+        
+    def go_to_back_page(self):
+        current_index = self.parent.currentIndex()
+        if current_index > 0:
+            self.parent.setCurrentIndex(current_index - 1) 
+        else:
+            print("Already on the first page")
+
+    def go_to_next_page(self):
+        current_index = self.parent.currentIndex()
+        if current_index < self.parent.count() - 1:
+            self.parent.setCurrentIndex(current_index + 1)
+        else:
+            print("Already on the last page")
     
 # Main Application
 class MainApp(QMainWindow):
@@ -512,13 +550,15 @@ class MainApp(QMainWindow):
         
         # Welcome screen and preview screen
         self.welcome_screen = WelcomeScreen(self.central_widget)
-        self.preview_screen = PreviewScreen(self.central_widget)
-        self.screen3 = CapturedPhotoReviewScreen(self.central_widget)
+        # self.preview_screen = PreviewScreen(self.central_widget)
+        self.captured_photoReview_screen = CapturedPhotoReviewScreen(self.central_widget)
+        self.preprocessingScreen = PreprocessingScreen(self.central_widget)
 
         # Add screens to the stacked widget
         self.central_widget.addWidget(self.welcome_screen)
-        self.central_widget.addWidget(self.preview_screen)
-        self.central_widget.addWidget(self.screen3)
+        # self.central_widget.addWidget(self.preview_screen)
+        self.central_widget.addWidget(self.captured_photoReview_screen)
+        self.central_widget.addWidget(self.preprocessingScreen)
         
         self.central_widget.setCurrentIndex(0)  # Start with Welcome Screen
 
