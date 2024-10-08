@@ -55,22 +55,46 @@ def initialize_camera():
     
     return pipeline
 
-# Function to capture RGB and depth frames
+# Function to align depth to RGB
+def align_frames(frames):
+    align_to = rs.stream.color  # Align depth to RGB
+    align = rs.align(align_to)
+
+    # Perform the alignment
+    aligned_frames = align.process(frames)
+    
+    # Get aligned frames
+    aligned_depth_frame = aligned_frames.get_depth_frame()  # Aligned depth frame
+    color_frame = aligned_frames.get_color_frame()          # Color frame remains the same
+    
+    if not aligned_depth_frame or not color_frame:
+        print("Error: Could not retrieve aligned frames.")
+        return None, None
+    
+    # Convert images to numpy arrays
+    try:
+        color_image = np.asanyarray(color_frame.get_data())
+        aligned_depth_image = np.asanyarray(aligned_depth_frame.get_data())
+    except ValueError as e:
+        print(f"Error converting frames to numpy arrays: {e}")
+        return None, None
+
+    return color_image, aligned_depth_image
+
+# Function to capture aligned RGB and depth frames
 def capture_frames(pipeline):
     try:
-        # Wait for a coherent pair of frames: depth and color
+        # Wait for frames (both depth and color)
         frames = pipeline.wait_for_frames()
-        color_frame = frames.get_color_frame()
-        depth_frame = frames.get_depth_frame()
+
+        # Align depth to color image
+        color_image, aligned_depth_image = align_frames(frames)
         
-        if not depth_frame or not color_frame:
+        if color_image is None or aligned_depth_image is None:
+            print("Error: Could not align frames.")
             return None, None
         
-        # Convert frames to numpy arrays
-        color_image = np.asanyarray(color_frame.get_data())
-        depth_image = np.asanyarray(depth_frame.get_data())
-        
-        return color_image, depth_image
+        return color_image, aligned_depth_image
     except RuntimeError as e:
         print(f"Runtime error while waiting for frames: {e}")
         return None, None
@@ -111,9 +135,3 @@ def capture_and_save_single_frame(output_folder=OUTPUT_PATH):
             return None
     finally:
         release_camera(pipeline)
-
-'''
-# Example usage
-if __name__ == "__main__":
-    take_photo()
-'''
