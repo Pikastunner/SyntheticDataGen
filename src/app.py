@@ -7,7 +7,6 @@ from PyQt5.QtCore import Qt, QFile, QTextStream, QThread, pyqtSignal
 from camera import CameraWorker
 from camera import is_camera_connected
 
-
 class PreviewScreen(QMainWindow):
     def __init__(self, parent):
         super().__init__()
