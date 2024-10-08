@@ -8,8 +8,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
-from camera import OUTPUT_PATH
-# OUTPUT_PATH = "../test_images"
+OUTPUT_PATH = "../test_images"
+# OUTPUT_PATH = "input_images"
 
 # Component 5
 class CapturedPhotoReviewScreen(QWidget):
