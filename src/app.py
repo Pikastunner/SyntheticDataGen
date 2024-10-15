@@ -5,23 +5,24 @@ import numpy as np
 from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, 
                              QFileDialog, QMessageBox, QListWidget, QMainWindow, QStackedWidget, QSizePolicy)
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import Qt, QFile, QTextStream
-import pyrealsense2 as rs
+from PyQt5.QtCore import Qt, QFile, QTextStream, QThread, pyqtSignal
 import cv2.aruco as aruco
 from rembg import remove
 from PIL import Image
 import re
 
-from camera import preview_image, capture_and_save_single_frame
+from camera import CameraWorker
+from camera import is_camera_connected
 
 from Window_CapturedPhotoReview import CapturedPhotoReviewScreen
 
 
 # PreviewScreen class for the camera feed preview
-class PreviewScreen(QWidget):
+class PreviewScreen(QMainWindow):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
+
         self.setWindowTitle("Preview Camera Feed")
 
         self.image_label = QLabel(self)
@@ -40,36 +41,56 @@ class PreviewScreen(QWidget):
 
         container = QWidget()
         container.setLayout(layout)
+        self.setCentralWidget(container)
 
-        self.timer = self.startTimer(100)
-        self.current_frame = None  # Store the current frame for saving it later
+        # Create CameraWorker thread
+        self.camera_worker = None
+
+        # Initialize the current frame variable
+        self.current_frame = (None, None)
 
         self.saved_rgb_image_filenames = []
         self.saved_depth_image_filenames = []
 
-    def blah(self, event):
-        color_image, _ = preview_image()
-        if color_image is not None:
-            self.current_frame = color_image  # Store the current frame
-            # Convert the image to QImage format
-            height, width, channel = color_image.shape
-            bytes_per_line = 3 * width
-            q_image = QImage(color_image.data, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
-            self.image_label.setPixmap(QPixmap.fromImage(q_image))
+    def start_camera_worker(self):
+        if is_camera_connected():
+            # Create CameraWorker thread
+            self.camera_worker = CameraWorker()
+
+            # Connect the frameCaptured signal to the update_image method
+            self.camera_worker.frameCaptured.connect(self.update_image)
+
+            # Start the camera worker thread
+            self.camera_worker.start()
+
+    def update_image(self, rgb_frame, depth_frame):
+        """Update the QLabel with the new frame"""
+        # Convert BGR to RGB
+        rgb_image = rgb_frame
+
+        # Convert the image to QImage format
+        height, width, channel = rgb_image.shape
+        bytes_per_line = 3 * width
+        
+        # Convert memoryview to bytes before passing to QImage
+        q_image = QImage(rgb_image.tobytes(), width, height, bytes_per_line, QImage.Format_RGB888)
+        self.image_label.setPixmap(QPixmap.fromImage(q_image))
+
+        # Store the current frame for photo capture
+        self.current_frame = (rgb_frame, depth_frame)
 
     def take_photo(self):
-        """Save the current frame as an image file."""
-        photo = capture_and_save_single_frame("input_images")
-        if photo is not None:
+        photo = self.camera_worker.take_photo()
+        if photo:
             print("photo taken")  # debug message
             self.saved_rgb_image_filenames.append(photo['rgb_image'])
             self.saved_depth_image_filenames.append(photo['depth_image'])
 
-    def keyPressEvent(self, event):
-        """Capture the spacebar press to take a photo."""
-        if event.key() == Qt.Key_Space:
-            self.take_photo()
-    
+    def closeEvent(self, event):
+        """Handle the window close event and stop the camera thread."""
+        self.camera_worker.stop()
+        event.accept()
+
     def go_to_back_page(self):
         current_index = self.parent.currentIndex()
         if current_index > 0:
@@ -81,30 +102,11 @@ class PreviewScreen(QWidget):
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 1)
+            next_screen = self.parent.widget(self.parent.currentIndex())
+            next_screen.update_variables()
+
         else:
             print("Already on the last page")
-
-
-# Function to check if camera is connected
-def is_camera_connected():
-    return True
-    # try:
-    #     # Create a context object to manage devices
-    #     context = rs.context()
-
-    #     # Get a list of connected devices
-    #     devices = context.query_devices()
-
-    #     # Check if any devices are connected
-    #     if len(devices) > 0:
-    #         print(f"Connected devices: {len(devices)}")
-    #         return True
-    #     else:
-    #         print("No RealSense devices connected.")
-    #         return False
-    # except Exception as e:
-    #     print(f"Error while checking devices: {str(e)}")
-    #     return False
 
 # Function to load the QSS file
 def load_stylesheet(filename):
@@ -121,7 +123,8 @@ class WelcomeScreen(QWidget):
 
         # Create the green half
         green_half = QWidget()
-        green_half.setObjectName("GreenHalf")
+        green_half.setStyleSheet("background-color: #84bf3b;")
+        # green_half.setObjectName("GreenHalf")
 
         # Create the content area
         content_area = QWidget()
@@ -133,13 +136,24 @@ class WelcomeScreen(QWidget):
         bottom_half = QWidget()
 
         label1 = QLabel("Welcome to SyntheticDataGen")
-        label1.setObjectName("Label1")
+        label1.setStyleSheet("font-weight: bold; font-size: 18px; margin: 15px;")
+        # label1.setObjectName("Label1")
 
         label2 = QLabel("Before clicking next, plug your camera in.")
-        label2.setObjectName("Label2")
+        # label2.setObjectName("Label2")
+        label2.setStyleSheet("""margin-left: 15px;
+    margin-right: 15px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;""")
         
         label3 = QLabel("Click Next to continue.")
-        label3.setObjectName("Label3")
+        # label3.setObjectName("Label3")
+        label3.setStyleSheet("""margin-left: 15px;
+    margin-right: 15px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;""")
 
         top_layout.addWidget(label1)
         top_layout.addWidget(label2)
@@ -157,7 +171,9 @@ class WelcomeScreen(QWidget):
 
         # Create bottom content
         bottom_widget = QWidget()
-        bottom_widget.setObjectName("BottomWidget")
+        # bottom_widget.setObjectName("BottomWidget")
+        bottom_widget.setStyleSheet("""     background-color: #d9d9d9;
+""")
         bottom_layout = QHBoxLayout()
         bottom_widget.setLayout(bottom_layout)
         
@@ -187,6 +203,8 @@ class WelcomeScreen(QWidget):
         if is_camera_connected():
             self.go_to_next_page()
             #self.parent.setCurrentIndex(1)  # Go to Camera Preview screen
+            preview_screen = self.parent.widget(1)  # Index 1 is the PreviewScreen
+            preview_screen.start_camera_worker()
         else:
             # Create an error message box
             error_msg = QMessageBox()
@@ -222,7 +240,17 @@ class WelcomeScreen(QWidget):
             print("Already on the last page")
 
 # Preprocessing Page
-class PreprocessingScreen(QWidget):     
+class PreprocessingScreen(QWidget):  
+    def update_variables(self):
+        self.processed_images = self.convert_images()
+        self.image_index = 0
+        qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
+        self.background_image.setPixmap(QPixmap.fromImage(qimage))
+        self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
+        self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
+        self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
+        self.background_image_info.setText(f"Image #1 of {len(self.processed_images)}")
+        
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -230,14 +258,14 @@ class PreprocessingScreen(QWidget):
         # Set up the initial container
         title_layout = QVBoxLayout()
         title_area = QWidget()
-        title_area.setObjectName("TitleArea")
-        # title_area.setStyleSheet("background-color: #d9d9d9;")
+        # title_area.setObjectName("TitleArea")
+        title_area.setStyleSheet("background-color: #d9d9d9;")
 
         # Working within the initial container
         title_text_layout = QVBoxLayout()
         label = QLabel("Preprocessing")
-        label.setObjectName("PreprocessingLabel")
-        # label.setStyleSheet("font-size: 18px; margin: 15px;")
+        # label.setObjectName("PreprocessingLabel")
+        label.setStyleSheet("font-size: 18px; margin: 15px;")
         title_text_layout.addWidget(label)
         title_area.setLayout(title_text_layout)
 
@@ -247,8 +275,8 @@ class PreprocessingScreen(QWidget):
         # Set up the initial container
         preprocessing_results_layout = QVBoxLayout()
         preprocessing_results_area = QWidget()
-        preprocessing_results_area.setObjectName("Preprocessing_results_area")
-        # preprocessing_results_area.setStyleSheet("background-color: #d9d9d9;")
+        # preprocessing_results_area.setObjectName("Preprocessing_results_area")
+        preprocessing_results_area.setStyleSheet("background-color: #d9d9d9;")
         
 
         # Working within the initial container
@@ -261,18 +289,18 @@ class PreprocessingScreen(QWidget):
         background_layout = QVBoxLayout()
 
         background_title = QLabel("Review removed background")
-        background_title.setObjectName("")
+        # background_title.setObjectName("")
         background_title.setStyleSheet("font-size: 12px;")
 
         self.background_image = QLabel()
-
-        self.processed_images = self.convert_images()
-        self.image_index = 0
-        qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
-        self.background_image.setPixmap(QPixmap.fromImage(qimage))
-        self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
-        self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
-        self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
+        self.processed_images = []
+        # self.processed_images = self.convert_images()
+        # self.image_index = 0
+        # qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
+        # self.background_image.setPixmap(QPixmap.fromImage(qimage))
+        # self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
+        # self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
+        # self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
 
 
         # Center and reduce spacing between background_image_info and background_image_next
@@ -511,14 +539,14 @@ class PreprocessingScreen(QWidget):
         return object_extracted
     
     def load_rgb_images(self):
-        folder_path = '../test_images'
+        folder_path = 'input_images'
         rgb_image_files = self.get_files_starting_with(folder_path, 'rgb_image')
         if rgb_image_files:
             rgb_images = [cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB) for filename in rgb_image_files]
             return rgb_images
 
     def load_depth_images(self):
-        folder_path = '../test_images'
+        folder_path = 'input_images'
         depth_image_files = self.get_files_starting_with(folder_path, 'depth_image')
         if depth_image_files:
             depth_images = [cv2.normalize(cv2.imread(filename, cv2.IMREAD_UNCHANGED), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) for filename in depth_image_files]
@@ -550,13 +578,13 @@ class MainApp(QMainWindow):
         
         # Welcome screen and preview screen
         self.welcome_screen = WelcomeScreen(self.central_widget)
-        # self.preview_screen = PreviewScreen(self.central_widget)
+        self.preview_screen = PreviewScreen(self.central_widget)
         self.captured_photoReview_screen = CapturedPhotoReviewScreen(self.central_widget)
         self.preprocessingScreen = PreprocessingScreen(self.central_widget)
 
         # Add screens to the stacked widget
         self.central_widget.addWidget(self.welcome_screen)
-        # self.central_widget.addWidget(self.preview_screen)
+        self.central_widget.addWidget(self.preview_screen)
         self.central_widget.addWidget(self.captured_photoReview_screen)
         self.central_widget.addWidget(self.preprocessingScreen)
         

@@ -8,11 +8,23 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
-OUTPUT_PATH = "../test_images"
+OUTPUT_PATH = "input_images"
 # OUTPUT_PATH = "input_images"
 
 # Component 5
 class CapturedPhotoReviewScreen(QWidget):
+    def update_variables(self):
+        sortKey = lambda s: int(re.match(r".*_(\d+).png", s).group(1))
+        isRGB = lambda p: p.startswith("rgb_ima")
+        fnames = sorted(filter(isRGB, os.listdir(OUTPUT_PATH)), key=sortKey)
+        self.img_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
+        self.main_img_path = self.img_paths[0] if self.img_paths else None
+        # self.main_img_frame = self.image_frame(self.main_img_path, 640, 480)
+        # self.sub_img_frame1 = self.image_frame(None, 220, 165)
+        # self.sub_img_frame2 = self.image_frame(None, 220, 165)
+        # self.sub_img_frame3 = self.image_frame(None, 220, 165)
+        self.display_images()
+
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -186,6 +198,8 @@ class CapturedPhotoReviewScreen(QWidget):
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 1)
+            next_screen = self.parent.widget(self.parent.currentIndex())
+            next_screen.update_variables()
         else:
             print("Already on the last page")
 
