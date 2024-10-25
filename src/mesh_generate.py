@@ -121,44 +121,44 @@ class MeshGenerator(QWidget):
         return main_cluster
 
 
-    # def on_generate(self):
-    #     print("Generate button clicked!")
+    def on_generate(self):
+        print("Generate button clicked!")
 
-    #     if not self.extracted_images or not self.depth_images:
-    #         print("No images or depth data available.")
-    #         return
+        if not self.extracted_images or not self.depth_images:
+            print("No images or depth data available.")
+            return
 
-    #     # Initialize an empty point cloud to accumulate all clouds
-    #     accumulated_point_cloud = o3d.geometry.PointCloud()
+        # Initialize an empty point cloud to accumulate all clouds
+        accumulated_point_cloud = o3d.geometry.PointCloud()
 
-    #     for i, (rgb_image, depth_image, aruco_data) in enumerate(zip(self.extracted_images, self.depth_images, self.aruco_data)):
-    #         # Convert depth map to point cloud
-    #         point_cloud = self.depth_to_point_cloud(rgb_image, depth_image)
+        for i, (rgb_image, depth_image, aruco_data) in enumerate(zip(self.extracted_images, self.depth_images, self.aruco_data)):
+            # Convert depth map to point cloud
+            point_cloud = self.depth_to_point_cloud(rgb_image, depth_image)
 
-    #         point_cloud = self.remove_scraggly_bits(point_cloud, min_points=50)
+            point_cloud = self.remove_scraggly_bits(point_cloud, min_points=50)
 
-    #         ids = aruco_data[1]
-    #         corners = aruco_data[0]
+            ids = aruco_data[1]
+            corners = aruco_data[0]
 
-    #         # Accumulate the transformed point clouds using ICP
-    #         if i == 0:
-    #             accumulated_point_cloud = point_cloud
-    #         else:
-    #             # Use the previous point cloud as a reference and perform ICP alignment
-    #             threshold = 0.02  # Adjust the threshold depending on your data
-    #             reg_p2p = o3d.pipelines.registration.registration_icp(
-    #                 point_cloud, accumulated_point_cloud, threshold, np.eye(4),
-    #                 o3d.pipelines.registration.TransformationEstimationPointToPoint()
-    #             )
+            # Accumulate the transformed point clouds using ICP
+            if i == 0:
+                accumulated_point_cloud = point_cloud
+            else:
+                # Use the previous point cloud as a reference and perform ICP alignment
+                threshold = 0.02  # Adjust the threshold depending on your data
+                reg_p2p = o3d.pipelines.registration.registration_icp(
+                    point_cloud, accumulated_point_cloud, threshold, np.eye(4),
+                    o3d.pipelines.registration.TransformationEstimationPointToPoint()
+                )
 
-    #             # Apply the transformation from ICP
-    #             point_cloud.transform(reg_p2p.transformation)
+                # Apply the transformation from ICP
+                point_cloud.transform(reg_p2p.transformation)
 
-    #             # Merge the aligned point cloud
-    #             accumulated_point_cloud += point_cloud
+                # Merge the aligned point cloud
+                accumulated_point_cloud += point_cloud
 
-    #     # Visualize the combined point cloud
-    #     o3d.visualization.draw_geometries([accumulated_point_cloud])
+        # Visualize the combined point cloud
+        o3d.visualization.draw_geometries([accumulated_point_cloud])
 
 
 
