@@ -17,6 +17,9 @@ from matplotlib.figure import Figure
 
 import open3d as o3d
 
+import numpy.linalg as la
+
+
 class MeshGenerator(QWidget):
     def __init__(self):
         super().__init__()
@@ -26,111 +29,137 @@ class MeshGenerator(QWidget):
 
         # Create a button with "Generate" label
         self.generate_button = QPushButton("Generate", self)
-        self.generate_button.clicked.connect(self.on_generate)  # Connect button to the slot method
+        self.generate_button.clicked.connect(self.on_generate) 
         self.layout.addWidget(self.generate_button)
-
-        # Canvas for displaying the plot
-        self.canvas = FigureCanvas(Figure())
-        self.layout.addWidget(self.canvas)
 
         # Variables to hold images
         self.extracted_images = []
         self.depth_images = []
-        self.aruco_images = []
+        self.aruco_data = []
 
-        # Use default intrinsic parameters for the D435i camera
-        self.camera_matrix = np.array([[615.20, 0, 320.00],
-                                       [0, 615.20, 240.00],
+        # These are the intrinsics of the D435i camera
+        self.camera_matrix = np.array([[606.86, 0, 321.847],
+                                       [0, 606.86, 244.995],
                                        [0, 0, 1]])
         self.dist_coeffs = np.zeros(5)  # Assuming no distortion
 
 
-    def set_images(self, extracted_objects, extracted_depths, extracted_arucos):
+    def set_data(self, extracted_objects, extracted_depths, extracted_arucos):
         # Store the images received from BackgroundRemover
-        self.extracted_images = extracted_objects
-        self.depth_images = extracted_depths
-        self.aruco_images = extracted_arucos
-        print(f"Received {len(extracted_objects)} Extracted images, {len(extracted_depths)} Depth images and {len(extracted_arucos)} Aruco images.")
+        self.extracted_images = extracted_objects # extracted objects with transparent background
+        self.depth_images = extracted_depths  # depth information
+        self.aruco_data = extracted_arucos  # list of (corners, ids) from aruco 
+        print(f"Received {len(extracted_objects)} Extracted images, {len(extracted_depths)} Depth images and {len(extracted_arucos)} Aruco data.")
 
-    def on_generate(self):
-        print("Generate button clicked!")
+    def depth_to_point_cloud(self, rgb_image, depth_image):
+        """Convert depth map and RGB/RGBA image to point cloud, ignoring pure black pixels in both RGB and depth images."""
+        h, w, channels = rgb_image.shape
+        fx, fy = self.camera_matrix[0, 0], self.camera_matrix[1, 1]
+        cx, cy = self.camera_matrix[0, 2], self.camera_matrix[1, 2]
 
-        if not self.extracted_images or not self.depth_images:
-            print("No images or depth data available.")
-            return
+        # Check if the image has an alpha channel (RGBA)
+        has_alpha = (channels == 4)
 
-        combined_point_cloud = o3d.geometry.PointCloud()
+        # Create lists of 3D points and corresponding colors
+        points = []
+        colors = []
 
-        for rgb_image, depth_image, aruco_image in zip(self.extracted_images, self.depth_images, self.aruco_images):
-            point_cloud, pose_matrix = self.generate_point_cloud_with_pose(rgb_image, depth_image, aruco_image)
+        for v in range(h):
+            for u in range(w):
+                Z = depth_image[v, u] / 1000.0  # Convert depth to meters
+                
+                # Skip if depth is zero (black in the depth map)
+                if Z == 0:
+                    continue
 
-            if point_cloud is None:
-                print("No valid point cloud generated from this image.")
-                continue
+                # Skip pixels that are transparent if alpha is present
+                if has_alpha and rgb_image[v, u, 3] == 0:
+                    continue
 
-            # Apply pose transformation
-            transformed_point_cloud = point_cloud.transform(pose_matrix)
+                # Skip pixels that are pure black in the RGB image
+                rgb_color = rgb_image[v, u, :3]
+                if np.all(rgb_color == 0):
+                    continue
 
-            # Combine point clouds
-            combined_point_cloud += transformed_point_cloud
+                # Compute the 3D point from depth and camera intrinsics
+                X = (u - cx) * Z / fx
+                Y = (v - cy) * Z / fy
+                points.append([X, Y, Z])
 
-        # Compute normals for the combined point cloud
-        combined_point_cloud.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+                # Add the RGB color (ignoring the alpha channel if present)
+                colors.append(rgb_color / 255.0)  # Normalize RGB
 
-        # Downsample the point cloud
-        combined_point_cloud = combined_point_cloud.voxel_down_sample(voxel_size=0.01)
+        # Create Open3D point cloud
+        point_cloud = o3d.geometry.PointCloud()
+        point_cloud.points = o3d.utility.Vector3dVector(np.array(points))
+        point_cloud.colors = o3d.utility.Vector3dVector(np.array(colors))
 
-        # Generate mesh using Poisson surface reconstruction
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(combined_point_cloud, depth=9)
-
-        # Visualize the mesh
-        o3d.visualization.draw_geometries([mesh])
+        return point_cloud
 
     
-    def generate_point_cloud_with_pose(self, rgb_image, depth_image, aruco_image):
+    def remove_scraggly_bits(self, point_cloud, eps=0.003, min_points=10):
         """
-        Generates a point cloud from the depth image and calculates the camera pose using ArUco markers.
+        Remove scraggly bits by keeping only the largest cluster in the point cloud.
+        
+        Parameters:
+        - point_cloud: The input Open3D point cloud object.
+        - eps: The distance threshold for DBSCAN clustering.
+        - min_points: The minimum number of points required to form a cluster.
+        
+        Returns:
+        - A point cloud containing only the largest cluster.
         """
-        # Detect ArUco markers in the ArUco image
-        gray_aruco_image = cv2.cvtColor(aruco_image, cv2.COLOR_BGR2GRAY)
-        dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
-        parameters = aruco.DetectorParameters()
-        detector = aruco.ArucoDetector(dictionary, parameters)
-        corners, ids, _ = detector.detectMarkers(gray_aruco_image)
+        # Perform DBSCAN clustering on the point cloud
+        labels = np.array(point_cloud.cluster_dbscan(eps=eps, min_points=min_points, print_progress=True))
 
-        if ids is None:
-            print("No ArUco markers detected in this image.")
-            return None, None
+        # Find the largest cluster (ignoring noise points, labeled as -1)
+        largest_cluster_label = np.bincount(labels[labels >= 0]).argmax()
 
-        # Use solvePnP for each detected marker
-        object_points = np.array([[0, 0, 0], [0, 0.05, 0], [0.05, 0.05, 0], [0.05, 0, 0]], dtype=np.float32)  # Example for a square marker
-        pose_matrices = []
-        for i in range(len(ids)):
-            image_points = corners[i][0]  # Get the corners of the detected marker
-            retval, rvec, tvec = cv2.solvePnP(object_points, image_points, self.camera_matrix, self.dist_coeffs)
-            if retval:
-                # Convert rotation vector to rotation matrix
-                rotation_matrix, _ = cv2.Rodrigues(rvec)
-                pose_matrix = np.eye(4)
-                pose_matrix[:3, :3] = rotation_matrix
-                pose_matrix[:3, 3] = tvec.flatten()
-                pose_matrices.append(pose_matrix)
+        # Select points that belong to the largest cluster
+        main_cluster = point_cloud.select_by_index(np.where(labels == largest_cluster_label)[0])
 
-        # Use the first pose matrix (or combine them as needed)
-        pose_matrix = pose_matrices[0] if pose_matrices else np.eye(4)
+        return main_cluster
 
-        # Convert depth image to point cloud using Open3D
-        depth_o3d = o3d.geometry.Image(depth_image)
-        rgb_o3d = o3d.geometry.Image(rgb_image)
 
-        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(rgb_o3d, depth_o3d)
-        intrinsic = o3d.camera.PinholeCameraIntrinsic(rgb_image.shape[1], rgb_image.shape[0], 
-                                                    self.camera_matrix[0, 0], self.camera_matrix[1, 1],
-                                                    self.camera_matrix[0, 2], self.camera_matrix[1, 2])
-        
-        point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, intrinsic)
-        
-        return point_cloud, pose_matrix
+    # def on_generate(self):
+    #     print("Generate button clicked!")
+
+    #     if not self.extracted_images or not self.depth_images:
+    #         print("No images or depth data available.")
+    #         return
+
+    #     # Initialize an empty point cloud to accumulate all clouds
+    #     accumulated_point_cloud = o3d.geometry.PointCloud()
+
+    #     for i, (rgb_image, depth_image, aruco_data) in enumerate(zip(self.extracted_images, self.depth_images, self.aruco_data)):
+    #         # Convert depth map to point cloud
+    #         point_cloud = self.depth_to_point_cloud(rgb_image, depth_image)
+
+    #         point_cloud = self.remove_scraggly_bits(point_cloud, min_points=50)
+
+    #         ids = aruco_data[1]
+    #         corners = aruco_data[0]
+
+    #         # Accumulate the transformed point clouds using ICP
+    #         if i == 0:
+    #             accumulated_point_cloud = point_cloud
+    #         else:
+    #             # Use the previous point cloud as a reference and perform ICP alignment
+    #             threshold = 0.02  # Adjust the threshold depending on your data
+    #             reg_p2p = o3d.pipelines.registration.registration_icp(
+    #                 point_cloud, accumulated_point_cloud, threshold, np.eye(4),
+    #                 o3d.pipelines.registration.TransformationEstimationPointToPoint()
+    #             )
+
+    #             # Apply the transformation from ICP
+    #             point_cloud.transform(reg_p2p.transformation)
+
+    #             # Merge the aligned point cloud
+    #             accumulated_point_cloud += point_cloud
+
+    #     # Visualize the combined point cloud
+    #     o3d.visualization.draw_geometries([accumulated_point_cloud])
+
 
 
 
@@ -151,7 +180,7 @@ if __name__ == "__main__":
     generate_widget = MeshGenerator()
 
     # Connect the signal to the slot to show the GenerateWidget and pass images
-    image_processing_widget.update_complete.connect(generate_widget.set_images)
+    image_processing_widget.update_complete.connect(generate_widget.set_data)
     image_processing_widget.update_complete.connect(generate_widget.show)
 
     # Set the layout for the main window
