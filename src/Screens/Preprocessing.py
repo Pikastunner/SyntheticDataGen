@@ -27,7 +27,7 @@ class PreprocessingScreen(QWidget):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
-                
+
         # Set up the initial container
         title_layout = QVBoxLayout()
         title_area = QWidget()
