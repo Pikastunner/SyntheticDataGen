@@ -11,6 +11,7 @@ from rembg import remove
 from PIL import Image
 import re
 
+import FinishingScreen
 from camera import CameraWorker
 from camera import is_camera_connected
 
@@ -294,13 +295,15 @@ class PreprocessingScreen(QWidget):
 
         self.background_image = QLabel()
         self.processed_images = []
-        # self.processed_images = self.convert_images()
-        # self.image_index = 0
-        # qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
-        # self.background_image.setPixmap(QPixmap.fromImage(qimage))
-        # self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
-        # self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
-        # self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
+        
+        # COMMENT THIS PARA
+        self.processed_images = self.convert_images()
+        self.image_index = 0
+        qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
+        self.background_image.setPixmap(QPixmap.fromImage(qimage))
+        self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
+        self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
+        self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
 
 
         # Center and reduce spacing between background_image_info and background_image_next
@@ -338,7 +341,7 @@ class PreprocessingScreen(QWidget):
         
         graphical_interface_image = QLabel()
         graphical_interface_image.setStyleSheet("background-color: black")
-        pixmap = QPixmap("input_images/rgb_image_1.png")
+        pixmap = QPixmap("../input_images/rgb_image_1.png")
         graphical_interface_image.setPixmap(pixmap)
         graphical_interface_image.setScaledContents(True)  # Allow the pixmap to scale with the label
         graphical_interface_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
@@ -415,6 +418,7 @@ class PreprocessingScreen(QWidget):
         next_button = QPushButton("Next")
         next_button.setFixedSize(100, 30)
         next_button.setStyleSheet("background-color: #ededed;")
+        next_button.clicked.connect(self.go_to_next_page)
 
         # Add the buttons to the layout with a small gap between them
         navigation_buttons_layout.addWidget(back_button)
@@ -539,14 +543,14 @@ class PreprocessingScreen(QWidget):
         return object_extracted
     
     def load_rgb_images(self):
-        folder_path = 'input_images'
+        folder_path = '../input_images'
         rgb_image_files = self.get_files_starting_with(folder_path, 'rgb_image')
         if rgb_image_files:
             rgb_images = [cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB) for filename in rgb_image_files]
             return rgb_images
 
     def load_depth_images(self):
-        folder_path = 'input_images'
+        folder_path = '../input_images'
         depth_image_files = self.get_files_starting_with(folder_path, 'depth_image')
         if depth_image_files:
             depth_images = [cv2.normalize(cv2.imread(filename, cv2.IMREAD_UNCHANGED), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) for filename in depth_image_files]
@@ -560,6 +564,25 @@ class PreprocessingScreen(QWidget):
             print("Already on the first page")
 
     def go_to_next_page(self):
+        if (len(self.directory_input.text()) == 0):
+            error_msg = QMessageBox()
+            
+            # Set critical icon for error message
+            error_msg.setIcon(QMessageBox.Critical)
+            
+            # Set the title of the error message box
+            error_msg.setWindowTitle("Empty Path Error")
+            
+            # Set the detailed text to help the user troubleshoot
+            error_msg.setText('<span style="color:#005ace;font-size: 15px;">No Path Input!</span>')
+            error_msg.setInformativeText("Please make sure you specify a path")
+            
+            # Set the standard button to close the message box
+            error_msg.setStandardButtons(QMessageBox.Ok)
+
+            # Execute and show the message box
+            error_msg.exec_()
+            return
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 1)
@@ -581,12 +604,14 @@ class MainApp(QMainWindow):
         self.preview_screen = PreviewScreen(self.central_widget)
         self.captured_photoReview_screen = CapturedPhotoReviewScreen(self.central_widget)
         self.preprocessingScreen = PreprocessingScreen(self.central_widget)
+        self.finishing_screen = FinishingScreen(self.central_widget)
 
         # Add screens to the stacked widget
         self.central_widget.addWidget(self.welcome_screen)
         self.central_widget.addWidget(self.preview_screen)
         self.central_widget.addWidget(self.captured_photoReview_screen)
         self.central_widget.addWidget(self.preprocessingScreen)
+        self.central_widget.addWidget(self.finishing_screen)
         
         self.central_widget.setCurrentIndex(0)  # Start with Welcome Screen
 
