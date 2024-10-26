@@ -8,8 +8,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
+
 OUTPUT_PATH = "input_images"
-# OUTPUT_PATH = "input_images"
+# OUTPUT_PATH = "aligned_images"
 
 # Component 5
 class CapturedPhotoReviewScreen(QWidget):
