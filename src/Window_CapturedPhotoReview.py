@@ -19,26 +19,23 @@ class CapturedPhotoReviewScreen(QWidget):
         fnames = sorted(filter(isRGB, os.listdir(OUTPUT_PATH)), key=sortKey)
         self.img_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
         self.main_img_path = self.img_paths[0] if self.img_paths else None
-        # self.main_img_frame = self.image_frame(self.main_img_path, 640, 480)
-        # self.sub_img_frame1 = self.image_frame(None, 220, 165)
-        # self.sub_img_frame2 = self.image_frame(None, 220, 165)
-        # self.sub_img_frame3 = self.image_frame(None, 220, 165)
         self.display_images()
 
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
 
-        self.resize(900, 600)
         sortKey = lambda s: int(re.match(r".*_(\d+).png", s).group(1))
         isRGB = lambda p: p.startswith("rgb_ima")
         fnames = sorted(filter(isRGB, os.listdir(OUTPUT_PATH)), key=sortKey)
         self.img_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
         self.main_img_path = self.img_paths[0] if self.img_paths else None
-        self.main_img_frame = self.image_frame(self.main_img_path, 640, 480)
-        self.sub_img_frame1 = self.image_frame(None, 220, 165)
-        self.sub_img_frame2 = self.image_frame(None, 220, 165)
-        self.sub_img_frame3 = self.image_frame(None, 220, 165)
+        
+        main_width, sub_width = int(7 * parent.width() / 10), int(parent.width() * 0.23)
+        self.main_img_frame = self.image_frame(self.main_img_path, main_width, int(0.75 * main_width))
+        self.sub_img_frame1 = self.image_frame(None, sub_width, int(0.75 * sub_width))
+        self.sub_img_frame2 = self.image_frame(None, sub_width, int(0.75 * sub_width))
+        self.sub_img_frame3 = self.image_frame(None, sub_width, int(0.75 * sub_width))
 
         # Set up the main layout
         main_layout = QVBoxLayout()
@@ -94,7 +91,7 @@ class CapturedPhotoReviewScreen(QWidget):
         spacerLayout = QHBoxLayout()
         spacerLayout.addItem(QSpacerItem(
             22, left_button.sizeHint().height(),
-            QSizePolicy.Minimum, QSizePolicy.Expanding
+            QSizePolicy.Minimum, QSizePolicy.Maximum
         ))
         small_images_layout.addLayout(spacerLayout)
 
@@ -210,7 +207,8 @@ if __name__ == "__main__":
             super().__init__()
 
             self.setWindowTitle("Photo Review Application")
-            self.setGeometry(100, 100, 400, 400)
+            # self.setGeometry(100, 100, 400, 400)
+            self.setFixedSize(700, 650)
 
             # Stacked widget to manage the multiple pages
             self.stacked_widget = QStackedWidget()
