@@ -1,137 +1,136 @@
-'''
-File to handle camera settings and photo taking
-'''
-
 import pyrealsense2 as rs
 import numpy as np
 import cv2
 import os
+from PyQt5.QtCore import QThread, pyqtSignal
+from time import sleep
 
 OUTPUT_PATH = "input_images"
 
-# Function to tell whether camera is connected
-def is_camera_connected():
-    context = rs.context()
-    if len(context.devices) == 0:
-        return False
-    return True
+class CameraWorker(QThread):
+    frameCaptured = pyqtSignal(np.ndarray, np.ndarray)  # Signal to emit captured frames
+    photoSaved = pyqtSignal(str, str)       # Signal to emit photo file paths when saved
 
-# Function to return preview of camera
-def preview_image():
-    pipeline = initialize_camera()
-    try:
-        color_image, depth_image = capture_frames(pipeline)
-        return color_image, depth_image
-    finally:
-        release_camera(pipeline)
+    def __init__(self, parent=None):
+        super(CameraWorker, self).__init__(parent)
+        self.pipeline = None
+        self.running = False
 
-# Function to take a photo and then save it to folder
-def take_photo():
-    output = capture_and_save_single_frame()
-    if output:
-        print(f"RGB image saved at: {output['rgb_image']}")
-        print(f"Depth image saved at: {output['depth_image']}")
-    else:
-        print("Failed to capture images.")
+    def run(self):
+        """Run the camera capture in the thread"""
+        try:
+            self.pipeline = rs.pipeline()
+            config = rs.config()
+            config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+            config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+            self.pipeline.start(config)
 
+            self.running = True
+            while self.running:
+                try:
+                    frames = self.pipeline.wait_for_frames(10000)  # 10-second timeout
+                    color_frame = frames.get_color_frame()
+                    depth_frame = frames.get_depth_frame()
+                    if not color_frame or not depth_frame:
+                        continue
+                    
+                    # Convert RealSense color frame to NumPy array
+                    color_image = np.asanyarray(color_frame.get_data())
+                    color_image = color_image[:, :, ::-1]
 
+                    depth_frame = np.asanyarray(depth_frame.get_data())
+                    
+                    # Emit the frame to the UI thread
+                    self.frameCaptured.emit(color_image, depth_frame)
+                except RuntimeError as e:
+                    print(f"Warning: {e}. Retrying...")
+                    sleep(1)  # Wait 1 second before retrying
+        finally:
+            if self.pipeline:
+                self.pipeline.stop()
 
-# Helper function to create unique id
-def create_image_id():
-    files = os.listdir(OUTPUT_PATH)
-    return int(len(files) / 2)
+    def take_photo(self):
+        """Take a photo and save it to disk"""
+        try:
+            if not self.pipeline:
+                print("Pipeline is not running. Cannot take photo.")
+                return
 
-# Function to initialize and configure the RealSense camera pipeline
-def initialize_camera():
-    pipeline = rs.pipeline()
-    config = rs.config()
-    
-    # Enable RGB and depth streams
-    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-    config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-    
-    # Start streaming
-    pipeline.start(config)
-    
-    return pipeline
+            color_image, depth_image = self.capture_frames()
+            if color_image is not None and depth_image is not None:
+                rgb_filename, depth_filename, _ = save_images(color_image, depth_image)
+                self.photoSaved.emit(rgb_filename, depth_filename)
+            else:
+                print("Failed to capture image.")
+        except Exception as e:
+            print(f"Error capturing photo: {e}")
 
-# Function to align depth to RGB
-def align_frames(frames):
-    align_to = rs.stream.color  # Align depth to RGB
-    align = rs.align(align_to)
+    def stop(self):
+        """Stop the camera thread"""
+        self.running = False
+        self.wait()  # Wait for the thread to exit
 
-    # Perform the alignment
-    aligned_frames = align.process(frames)
-    
-    # Get aligned frames
-    aligned_depth_frame = aligned_frames.get_depth_frame()  # Aligned depth frame
-    color_frame = aligned_frames.get_color_frame()          # Color frame remains the same
-    
-    if not aligned_depth_frame or not color_frame:
-        print("Error: Could not retrieve aligned frames.")
-        return None, None
-    
-    # Convert images to numpy arrays
-    try:
+    def capture_frames(self):
+        """Capture aligned RGB and depth frames from the RealSense camera"""
+        frames = self.pipeline.wait_for_frames()
+        align_to = rs.stream.color  # Align depth to RGB
+        align = rs.align(align_to)
+
+        aligned_frames = align.process(frames)
+        aligned_depth_frame = aligned_frames.get_depth_frame()
+        color_frame = aligned_frames.get_color_frame()
+
+        if not aligned_depth_frame or not color_frame:
+            print("Error: Could not retrieve aligned frames.")
+            return None, None
+
         color_image = np.asanyarray(color_frame.get_data())
         aligned_depth_image = np.asanyarray(aligned_depth_frame.get_data())
-    except ValueError as e:
-        print(f"Error converting frames to numpy arrays: {e}")
-        return None, None
 
-    return color_image, aligned_depth_image
-
-# Function to capture aligned RGB and depth frames
-def capture_frames(pipeline):
-    try:
-        # Wait for frames (both depth and color)
-        frames = pipeline.wait_for_frames()
-
-        # Align depth to color image
-        color_image, aligned_depth_image = align_frames(frames)
-        
-        if color_image is None or aligned_depth_image is None:
-            print("Error: Could not align frames.")
-            return None, None
-        
         return color_image, aligned_depth_image
-    except RuntimeError as e:
-        print(f"Runtime error while waiting for frames: {e}")
-        return None, None
 
-# Function to save images to a folder
-def save_images(color_image, depth_image, output_folder=OUTPUT_PATH):
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-    
+def save_images(color_image, depth_image):
+    """Save the RGB and depth images to disk"""
+    if not os.path.exists(OUTPUT_PATH):
+        os.makedirs(OUTPUT_PATH)
+
     # Generate filenames
-    rgb_image_filename = os.path.join(output_folder, 'rgb_image_' + str(create_image_id()) + '.png')
-    depth_image_filename = os.path.join(output_folder, 'depth_image_colormap_' + str(create_image_id()) + '.png')
-    
+    rgb_image_filename = os.path.join(OUTPUT_PATH, f'rgb_image_{create_image_id()}.png')
+    depth_image_colormap_filename = os.path.join(OUTPUT_PATH, f'depth_image_colormap_{create_image_id()}.png')
+    depth_image_filename = os.path.join(OUTPUT_PATH, f'depth_image_{create_image_id()}.png')
+
     # Apply colormap to depth image for visualization
     depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
-    
+
     # Save the RGB and depth images
     cv2.imwrite(rgb_image_filename, color_image)
-    cv2.imwrite(depth_image_filename, depth_colormap)
-    
-    return rgb_image_filename, depth_image_filename
+    cv2.imwrite(depth_image_colormap_filename, depth_colormap)
+    cv2.imwrite(depth_image_filename, depth_image)
 
-# Function to release the camera and close any windows
-def release_camera(pipeline):
-    pipeline.stop()
-    cv2.destroyAllWindows()
 
-# Example function to capture and save a single frame (to be used in a frontend or other scripts)
-def capture_and_save_single_frame(output_folder=OUTPUT_PATH):
-    pipeline = initialize_camera()
+    return rgb_image_filename, depth_image_filename, depth_image_colormap_filename
+
+def create_image_id():
+    """Create a unique image ID based on the number of files in the output folder"""
+    files = os.listdir(OUTPUT_PATH)
+    return int(len(files) / 3)
     
+# Function to check if camera is connected
+def is_camera_connected():
     try:
-        color_image, depth_image = capture_frames(pipeline)
-        if color_image is not None and depth_image is not None:
-            rgb_filename, depth_filename = save_images(color_image, depth_image, output_folder)
-            return {'rgb_image': rgb_filename, 'depth_image': depth_filename}
+        # Create a context object to manage devices
+        context = rs.context()
+
+        # Get a list of connected devices
+        devices = context.query_devices()
+
+        # Check if any devices are connected
+        if len(devices) > 0:
+            print(f"Connected devices: {len(devices)}")
+            return True
         else:
-            return None
-    finally:
-        release_camera(pipeline)
+            print("No RealSense devices connected.")
+            return False
+    except Exception as e:
+        print(f"Error while checking devices: {str(e)}")
+        return False
