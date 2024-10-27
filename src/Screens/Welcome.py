@@ -4,6 +4,8 @@ from PyQt5.QtCore import Qt, QFile, QTextStream, QThread, pyqtSignal
 
 from camera import is_camera_connected
 
+from Screens.Settings import create_settings_button
+
 # WelcomeScreen class for the initial welcome screen
 class WelcomeScreen(QWidget):
     def __init__(self, parent):
@@ -72,10 +74,13 @@ class WelcomeScreen(QWidget):
         self.next_button.setFixedSize(100, 30)
         self.next_button.setObjectName("NextButton")
         self.next_button.clicked.connect(self.check_camera)
+
+        settings_button, settings_layout = create_settings_button(self)
+        bottom_layout.addWidget(settings_button, 0, Qt.AlignLeft | Qt.AlignBottom)
         bottom_layout.addWidget(self.next_button, 0, Qt.AlignRight | Qt.AlignBottom)
 
         # Create bottom area
-        bottom_area = QHBoxLayout()      
+        bottom_area = QHBoxLayout()
         bottom_area.addWidget(bottom_widget)
 
         # Create the main layout

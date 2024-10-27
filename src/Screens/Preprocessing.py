@@ -9,6 +9,8 @@ import cv2.aruco as aruco
 from rembg import remove
 from PIL import Image
 import re
+from Screens.Settings import create_settings_button
+
 
 OUTPUT_PATH = "input_images"
 
@@ -181,6 +183,9 @@ class PreprocessingScreen(QWidget):
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         navigation_buttons_layout.addWidget(spacer)
+
+        settings_button, _ = create_settings_button(self)
+        navigation_buttons_layout.addWidget(settings_button, 0, Qt.AlignLeft | Qt.AlignBottom)
 
         back_button = QPushButton("Back")
         back_button.setFixedSize(100, 30)

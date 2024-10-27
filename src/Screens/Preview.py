@@ -1,9 +1,15 @@
 # PreviewScreen class for the camera feed preview
-from PyQt5.QtWidgets import (QWidget, QPushButton, QLabel, QVBoxLayout, QMainWindow)
+from PyQt5.QtWidgets import (
+    QWidget, QPushButton, QLabel, QVBoxLayout,
+    QHBoxLayout, QMainWindow
+)
 from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtCore import Qt
 
 from camera import CameraWorker
 from camera import is_camera_connected
+
+from Screens.Settings import create_settings_button
 
 class PreviewScreen(QMainWindow):
     def __init__(self, parent):
@@ -18,13 +24,19 @@ class PreviewScreen(QMainWindow):
         self.take_photo_button = QPushButton("Take Photo", self)
         self.take_photo_button.clicked.connect(self.take_photo)
 
+        bottom_layout = QHBoxLayout()
         self.next_button = QPushButton("Next", self)
         self.next_button.clicked.connect(self.go_to_next_page)
+        settings_button, _ = create_settings_button(self)
+        bottom_layout.addWidget(settings_button, 0, Qt.AlignLeft | Qt.AlignBottom)
+        bottom_layout.addWidget(self.next_button)
 
         layout = QVBoxLayout()
         layout.addWidget(self.image_label)
         layout.addWidget(self.take_photo_button)
-        layout.addWidget(self.next_button)
+
+        layout.addLayout(bottom_layout)
+        # layout.addWidget(self.next_button)
 
         container = QWidget()
         container.setLayout(layout)
