@@ -10,6 +10,8 @@ from rembg import remove
 from PIL import Image
 import os
 
+from board import *
+
 class BackgroundRemover(QWidget):
     '''
     This PyQt widget takes in several images and returns the images without their backgrounds.
@@ -77,6 +79,13 @@ class BackgroundRemover(QWidget):
         else:
             self.load_depth_button.setText("Load Depth Images ❌")
 
+    def set_depths(self, filenames):
+        self.depth_images = [cv2.normalize(cv2.imread(filename, cv2.IMREAD_UNCHANGED), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) for filename in filenames]
+        self.update_table()
+
+    def set_rgbs(self, filenames):
+        self.rgb_images = [cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB) for filename in filenames]
+        self.update_table()
 
     def update_table(self):
         # Clear the table and set rows
@@ -85,9 +94,33 @@ class BackgroundRemover(QWidget):
         extracted_objects = []  # List to store extracted objects
         aruco_datas = []  # List to store aruco information
 
+        def estimatePoseSingleMarkers(corners, marker_size, mtx, distortion):
+            marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
+                                    [marker_size / 2, marker_size / 2, 0],
+                                    [marker_size / 2, -marker_size / 2, 0],
+                                    [-marker_size / 2, -marker_size / 2, 0]], dtype=np.float32)
+            rvecs = []
+            tvecs = []
+            for c in corners:
+                _, R, t = cv2.solvePnP(marker_points, c, mtx, distortion, False, cv2.SOLVEPNP_EPNP)
+                rvecs.append(R)
+                tvecs.append(t)
+            return rvecs, tvecs
+        
+
+        emitted_depths = []
+
         for i in range(min(len(self.rgb_images), len(self.depth_images))):
             # Create masks for the object and ArUco markers
             object_mask, aruco_mask, aruco_data = self.create_mask_with_rembg(self.rgb_images[i])
+
+            corners = aruco_data[0]
+            ids = aruco_data[1]
+
+            if ids is None or len(ids) <= 1:
+                continue
+
+            emitted_depths.append(self.depth_images[i])
             aruco_datas.append(aruco_data)
 
             # Extract object without ArUco markers
@@ -96,9 +129,18 @@ class BackgroundRemover(QWidget):
             # Extract ArUco markers to see whether they have been detected properly
             aruco_extracted = self.apply_mask(self.rgb_images[i], aruco_mask)
 
+            rvecs, tvecs = estimatePoseSingleMarkers(corners, 0.02, camera_matrix(), dist_coeffs())
+
+            # Draw axes for each detected marker
+            for rvec, tvec in zip(rvecs, tvecs):
+                # Draw the axes
+                aruco_extracted = cv2.drawFrameAxes(aruco_extracted, camera_matrix(), dist_coeffs(), rvec, tvec, 0.03)  # 0.1 is the length of the axes
+
+            aruco_extracted = aruco.drawDetectedMarkers(aruco_extracted, corners, ids)
+
             # Store the extracted object, ArUco markers, and depth for later use
             extracted_objects.append(object_extracted)
-
+            
             # Display images in row
             self.display_image_in_table(self.rgb_images[i], i, 0)
             self.display_image_in_table(self.depth_images[i], i, 1, cmap='gray')
@@ -107,7 +149,7 @@ class BackgroundRemover(QWidget):
 
         # Emit extracted objects and markers
         if len(self.depth_images) and len(self.rgb_images):
-            self.update_complete.emit(extracted_objects, self.depth_images, aruco_datas)  # Emit with extracted objects
+            self.update_complete.emit(extracted_objects, emitted_depths, aruco_datas)  # Emit with extracted objects
 
 
     def display_image_in_table(self, image, row, column, cmap=None):
@@ -136,18 +178,26 @@ class BackgroundRemover(QWidget):
         gray_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY)
 
         # Define the dictionary of ArUco markers
-        dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
+        dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
 
         # Adjust DetectorParameters for more sensitivity
         parameters = aruco.DetectorParameters()
-        parameters.adaptiveThreshWinSizeMax = 90  # Increase max value for better handling of varying light
-        parameters.adaptiveThreshConstant = 7  # Make thresholding more adaptable to different marker contrasts
+        parameters.adaptiveThreshWinSizeMax = 75  # Increase max value for better handling of varying light
+        parameters.useAruco3Detection = True
+        parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
+        parameters.cornerRefinementMaxIterations = 40
+        # parameters.polygonalApproxAccuracyRate = 0.05  # Increase for more lenient approximation
+
 
         # Detect ArUco markers before background removal
         detector = aruco.ArucoDetector(dictionary, parameters)
-        corners, ids, _ = detector.detectMarkers(gray_image)
+        corners, ids, rejected = detector.detectMarkers(gray_image)
 
-        print(f"{len(ids)} aruco markers found")
+
+        if ids is not None:
+            corners, ids, _, recovered = detector.refineDetectedMarkers(gray_image, board=aruco_board(), detectedCorners=corners, detectedIds=ids, rejectedCorners=rejected,cameraMatrix=camera_matrix(),distCoeffs=dist_coeffs())
+            print(f"{len(ids)} aruco markers found")
+
 
         # Create a mask for detected ArUco markers
         aruco_mask = np.zeros(rgb_image.shape[:2], dtype=np.uint8)
@@ -186,7 +236,6 @@ class BackgroundRemover(QWidget):
         mask_3channel = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
         object_extracted = cv2.bitwise_and(rgb_image, mask_3channel)
         return object_extracted
-
 
 
 class GenerateWidget(QWidget):

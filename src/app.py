@@ -616,8 +616,13 @@ class MainApp(QMainWindow):
         self.central_widget.setCurrentIndex(0)  # Start with Welcome Screen
 
 
+import os
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+
+    print("Current working directory:", os.getcwd())
+
 
     # Load the stylesheet from the QSS file
     stylesheet = load_stylesheet('style.qss')
