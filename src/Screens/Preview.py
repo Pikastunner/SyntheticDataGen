@@ -98,7 +98,7 @@ class PreviewScreen(QMainWindow):
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 1)
             next_screen = self.parent.widget(self.parent.currentIndex())
-            next_screen.update_variables(self.saved_rgb_image_filenames, self.saved_depth_image_filenames)
+            next_screen.update_variables()
 
         else:
             print("Already on the last page")
