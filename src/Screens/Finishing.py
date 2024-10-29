@@ -7,6 +7,8 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt
 import re
 
+OUTPUT_PATH = 'input_images'
+
 # Preprocessing Page
 class FinishingScreen(QWidget):
     def __init__(self, parent):
@@ -183,7 +185,7 @@ class FinishingScreen(QWidget):
             os.startfile(path)
 
     def load_rgb_images(self):
-        folder_path = '../input_images'
+        folder_path = OUTPUT_PATH
         rgb_image_files = self.get_files_starting_with(folder_path, 'rgb_image')
         if rgb_image_files:
             rgb_images = [cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB) for filename in rgb_image_files]

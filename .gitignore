@@ -1,1 +1,5 @@
 out/
+.venv/
+run.sh
+test.py
+__pycache__/
