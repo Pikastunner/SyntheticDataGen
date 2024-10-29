@@ -15,8 +15,8 @@ OUTPUT_PATH = "input_images"
 
 # Preprocessing Page
 class PreprocessingScreen(QWidget):  
-    def update_variables(self):
-        self.processed_images = self.convert_images()
+    def update_variables(self, rgb_filenames, depth_filenames):
+        self.processed_images = self.convert_images(rgb_filenames, depth_filenames)
         self.image_index = 0
         qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
         self.background_image.setPixmap(QPixmap.fromImage(qimage))
@@ -70,13 +70,13 @@ class PreprocessingScreen(QWidget):
         self.processed_images = []
         
         # COMMENT THIS PARA
-        self.processed_images = self.convert_images()
-        self.image_index = 0
-        qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
-        self.background_image.setPixmap(QPixmap.fromImage(qimage))
-        self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
-        self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
-        self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
+        # self.processed_images = self.convert_images()
+        # self.image_index = 0
+        # qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
+        # self.background_image.setPixmap(QPixmap.fromImage(qimage))
+        # self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
+        # self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
+        # self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
 
 
         # Center and reduce spacing between background_image_info and background_image_next
@@ -250,17 +250,17 @@ class PreprocessingScreen(QWidget):
             self.background_image.setScaledContents(True)  # Optional: Scale to fit the label
             self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
 
-    def convert_images(self):
+    def convert_images(self, rgb_filenames, depth_filenames):
         processed_images = []
-        rgb_images = self.load_rgb_images()
-        depth_images = self.load_depth_images()
+        rgb_images = self.load_rgb_images(rgb_filenames)
+        depth_images = self.load_depth_images(depth_filenames)
         for i in range(min(len(rgb_images), len(depth_images))):
             # Create mask and extract object with current parameters
             mask = self.create_mask_with_rembg(rgb_images[i])
             object_extracted = self.apply_mask(rgb_images[i], mask)
             processed_images.append(object_extracted)
         return processed_images
-
+    
     def numpy_to_qimage(self, img):
         height, width, channel = img.shape
         bytes_per_line = channel * width
@@ -315,19 +315,15 @@ class PreprocessingScreen(QWidget):
         object_extracted = cv2.bitwise_and(rgb_image, mask_3channel)
         return object_extracted
     
-    def load_rgb_images(self):
-        folder_path = OUTPUT_PATH
-        rgb_image_files = self.get_files_starting_with(folder_path, 'rgb_image')
-        if rgb_image_files:
-            rgb_images = [cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB) for filename in rgb_image_files]
-            return rgb_images
+    def load_rgb_images(self, rgb_filenames=None):
+        folder_path = './input_images/' if not rgb_filenames else ''
+        rgb_images = [cv2.cvtColor(cv2.imread(f"{folder_path}{filename}"), cv2.COLOR_BGR2RGB) for filename in rgb_filenames]
+        return rgb_images
 
-    def load_depth_images(self):
-        folder_path = OUTPUT_PATH
-        depth_image_files = self.get_files_starting_with(folder_path, 'depth_image')
-        if depth_image_files:
-            depth_images = [cv2.normalize(cv2.imread(filename, cv2.IMREAD_UNCHANGED), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) for filename in depth_image_files]
-            return depth_images
+    def load_depth_images(self, depth_filenames=None):
+        folder_path = './input_images/' if not depth_filenames else ''
+        depth_images = [cv2.normalize(cv2.imread(f"{folder_path}{filename}", cv2.IMREAD_UNCHANGED), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) for filename in depth_filenames]
+        return depth_images
         
     def go_to_back_page(self):
         current_index = self.parent.currentIndex()

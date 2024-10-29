@@ -9,8 +9,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 
-OUTPUT_PATH = "input_images"
-# OUTPUT_PATH = "aligned_images"
+OUTPUT_PATH = "input_images/"
 
 # Component 5
 class CapturedPhotoReviewScreen(QWidget):
@@ -20,7 +19,14 @@ class CapturedPhotoReviewScreen(QWidget):
         fnames = sorted(filter(isRGB, os.listdir(OUTPUT_PATH)), key=sortKey)
         self.img_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
         self.main_img_path = self.img_paths[0] if self.img_paths else None
+
+        isDepth = lambda p: p.startswith("depth_ima") and re.match(".*colormap.*", p) is None
+        fnames = sorted(filter(isDepth, os.listdir(OUTPUT_PATH)), key=sortKey)
+        self.depth_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
+
+        print("Number of depth images:", len(fnames))
         self.display_images()
+
 
     def __init__(self, parent):
         super().__init__()
@@ -119,7 +125,6 @@ class CapturedPhotoReviewScreen(QWidget):
 
         self.display_images()
 
-
     def newPixmap(self, frame: QLabel, img_path: str) -> QPixmap:
         if not img_path:
             frame.clear()
@@ -197,7 +202,8 @@ class CapturedPhotoReviewScreen(QWidget):
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 1)
             next_screen = self.parent.widget(self.parent.currentIndex())
-            next_screen.update_variables()
+            next_screen.update_variables(self.img_paths, self.depth_paths)
+            
         else:
             print("Already on the last page")
 

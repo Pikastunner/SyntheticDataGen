@@ -28,26 +28,23 @@ class WelcomeScreen(QWidget):
         label1.setStyleSheet("font-weight: bold; font-size: 18px; margin: 15px;")
         # label1.setObjectName("Label1")
 
-        label2 = QLabel("Before clicking next, plug your camera in.")
-        # label2.setObjectName("Label2")
+        # Create the label with HTML content
+        label2 = QLabel('If you wish to capture images, ensure a compatible camera is plugged in.<br><br><br>'
+                        'You can read Realsense documentation <a href="https://dev.intelrealsense.com/docs">here</a>.')
+        # Enable HTML formatting
+        label2.setOpenExternalLinks(True)  # Allow links to open in the default web browser
+
         label2.setStyleSheet("""margin-left: 15px;
-    margin-right: 15px;
+    margin-right: 30px;
     margin-top: 10px;
     margin-bottom: 10px;
     font-size: 12px;""")
         
-        label3 = QLabel("Click Next to continue.")
-        # label3.setObjectName("Label3")
-        label3.setStyleSheet("""margin-left: 15px;
-    margin-right: 15px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    font-size: 12px;""")
-
+        
         top_layout.addWidget(label1)
         top_layout.addWidget(label2)
-        top_layout.addWidget(label3)
         top_half.setLayout(top_layout)
+
 
         layout.addWidget(top_half, 25)
         layout.addWidget(bottom_half, 75)
@@ -66,14 +63,30 @@ class WelcomeScreen(QWidget):
         bottom_layout = QHBoxLayout()
         bottom_widget.setLayout(bottom_layout)
         
-        # Create next button with specified size and alignment
-        self.next_button = QPushButton("Next")
-        self.next_button.setStyleSheet("background-color: #ededed")
+        # Create a horizontal layout for the buttons
+        button_layout = QHBoxLayout()
+
+        # Load button
+        self.load_button = QPushButton("Load")
+        self.load_button.setStyleSheet("background-color: #ededed; margin-right: 5px")
+        self.load_button.setToolTip("Start from a pre-exsting set of images.")
+        self.load_button.setFixedSize(100, 30)
+        self.load_button.setObjectName("LoadButton")
+        self.load_button.clicked.connect(self.on_load_button_pressed)
+        button_layout.addWidget(self.load_button)
+
+        # Next button
+        self.next_button = QPushButton("Capture")
+        self.next_button.setStyleSheet("background-color: #ededed;")
+        self.next_button.setToolTip("Preview your camera output and capture images.")
         self.next_button.setFixedSize(100, 30)
         self.next_button.setObjectName("NextButton")
         self.next_button.clicked.connect(self.check_camera)
+        button_layout.addWidget(self.next_button)
 
-        bottom_layout.addWidget(self.next_button, 0, Qt.AlignRight | Qt.AlignBottom)
+        # Align the button layout to the bottom right
+        bottom_layout.addLayout(button_layout)  # Add without alignment
+        bottom_layout.setAlignment(button_layout, Qt.AlignRight | Qt.AlignBottom)
 
         # Create bottom area
         bottom_area = QHBoxLayout()
@@ -128,3 +141,14 @@ class WelcomeScreen(QWidget):
             self.parent.setCurrentIndex(current_index + 1)
         else:
             print("Already on the last page")
+
+
+    def on_load_button_pressed(self):
+        self.saved_rgb_image_filenames, _ = QFileDialog.getOpenFileNames(self, "Open RGB Images", "", "Image Files (*.png *.jpg *.bmp)")
+        self.saved_depth_image_filenames, _ = QFileDialog.getOpenFileNames(self, "Open Depth Images", "", "Image Files (*.png *.jpg *.bmp)")
+
+        if len(self.saved_rgb_image_filenames) and len(self.saved_depth_image_filenames):
+            current_index = self.parent.currentIndex()
+            self.parent.setCurrentIndex(current_index + 3)
+            next_screen = self.parent.widget(self.parent.currentIndex())
+            next_screen.update_variables(self.saved_rgb_image_filenames, self.saved_depth_image_filenames)

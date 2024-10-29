@@ -21,14 +21,6 @@ from Screens.Preprocessing import PreprocessingScreen
 from Screens.Welcome import WelcomeScreen
 
 
-# Function to load the QSS file
-def load_stylesheet(filename):
-    file = QFile(filename)
-    file.open(QFile.ReadOnly | QFile.Text)
-    stream = QTextStream(file)
-    return stream.readAll()
-
-
 # Main Application
 class MainApp(QMainWindow):
     def __init__(self):
@@ -45,24 +37,25 @@ class MainApp(QMainWindow):
         self.preview_screen = PreviewScreen(self.central_widget)
         self.captured_photoReview_screen = CapturedPhotoReviewScreen(self.central_widget)
         self.preprocessingScreen = PreprocessingScreen(self.central_widget)
-        self.finishing_screen = FinishingScreen(self.central_widget)
+        # self.finishing_screen = FinishingScreen(self.central_widget)
 
         # Add screens to the stacked widget
         self.central_widget.addWidget(self.welcome_screen)
         self.central_widget.addWidget(self.preview_screen)
         self.central_widget.addWidget(self.captured_photoReview_screen)
         self.central_widget.addWidget(self.preprocessingScreen)
-        self.central_widget.addWidget(self.finishing_screen)
+        # self.central_widget.addWidget(self.finishing_screen)
         
         self.central_widget.setCurrentIndex(0)  # Start with Welcome Screen
 
 
+import os
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    # Load the stylesheet from the QSS file
-    stylesheet = load_stylesheet('style.qss')
-    app.setStyleSheet(stylesheet)
+    with open("src/style.qss","r") as fh:
+        app.setStyleSheet(fh.read())
 
     main_app = MainApp()
     main_app.show()

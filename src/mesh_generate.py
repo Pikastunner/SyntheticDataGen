@@ -1,7 +1,7 @@
-# '''
-# This module handles the creation of the mesh object (.obj)
+# # '''
+# # This module handles the creation of the mesh object (.obj)
 
-# '''
+# # '''
 
 
 import sys
@@ -16,7 +16,13 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 import open3d as o3d
-from pxr import Usd, UsdGeom, Gf, Sdf
+
+import numpy.linalg as la
+
+from board import *
+
+# Add necessary imports at the beginning
+from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QSlider)
 
 class MeshGenerator(QWidget):
     def __init__(self):
@@ -27,118 +33,218 @@ class MeshGenerator(QWidget):
 
         # Create a button with "Generate" label
         self.generate_button = QPushButton("Generate", self)
-        self.generate_button.clicked.connect(self.on_generate)  # Connect button to the slot method
+        self.generate_button.clicked.connect(self.on_generate)
         self.layout.addWidget(self.generate_button)
 
-        # Canvas for displaying the plot
-        self.canvas = FigureCanvas(Figure())
-        self.layout.addWidget(self.canvas)
+        # Create a label to display the threshold value
+        self.threshold_label = QLabel("Threshold: 0.04", self)
+        self.layout.addWidget(self.threshold_label)
+
+        # Create a slider for threshold adjustment
+        self.threshold_slider = QSlider()
+        self.threshold_slider.setOrientation(1)  # Horizontal orientation
+        self.threshold_slider.setRange(1, 100)  # Set range from 1 to 100 (you can adjust this range)
+        self.threshold_slider.setValue(4)  # Default value corresponds to 0.04
+        self.threshold_slider.valueChanged.connect(self.update_threshold_label)
+        self.layout.addWidget(self.threshold_slider)
 
         # Variables to hold images
         self.extracted_images = []
         self.depth_images = []
-        self.aruco_images = []
+        self.aruco_data = []
 
-        # Use default intrinsic parameters for the D435i camera
-        self.camera_matrix = np.array([[615.20, 0, 320.00],
-                                       [0, 615.20, 240.00],
-                                       [0, 0, 1]])
-        self.dist_coeffs = np.zeros(5)  # Assuming no distortion
+        # Initialize threshold variable
+        self.threshold = 0.04
 
+    def update_threshold_label(self):
+        # Update threshold value based on slider position
+        self.threshold = self.threshold_slider.value() / 100.0  # Convert to float
+        self.threshold_label.setText(f"Threshold: {self.threshold:.2f}")  # Update label display
 
-    def set_images(self, extracted_objects, extracted_depths, extracted_arucos):
+    def set_data(self, extracted_objects, extracted_depths, extracted_arucos):
         # Store the images received from BackgroundRemover
-        self.extracted_images = extracted_objects
-        self.depth_images = extracted_depths
-        self.aruco_images = extracted_arucos
-        print(f"Received {len(extracted_objects)} Extracted images, {len(extracted_depths)} Depth images and {len(extracted_arucos)} Aruco images.")
+        self.extracted_images = extracted_objects  # extracted objects with transparent background
+        self.depth_images = extracted_depths  # depth information
+        self.aruco_data = extracted_arucos  # list of (corners, ids) from aruco
+        print(f"Received {len(extracted_objects)} Extracted images, {len(extracted_depths)} Depth images and {len(extracted_arucos)} Aruco data.")
+
+    def depth_to_point_cloud(self, rgb_image, depth_image):
+        """Convert depth map and RGB/RGBA image to point cloud, ignoring pure black pixels in both RGB and depth images."""
+        matrix = camera_matrix()
+        h, w, channels = rgb_image.shape
+        fx, fy = matrix[0, 0], matrix[1, 1]
+        cx, cy = matrix[0, 2], matrix[1, 2]
+
+        # Check if the image has an alpha channel (RGBA)
+        has_alpha = (channels == 4)
+
+        # Create lists of 3D points and corresponding colors
+        points = []
+        colors = []
+
+        for v in range(h):
+            for u in range(w):
+                Z = depth_image[v, u] / 1000.0  # Convert depth to meters
+                
+                # Skip if depth is zero (black in the depth map)
+                if Z == 0:
+                    continue
+
+                # Skip pixels that are transparent if alpha is present
+                if has_alpha and rgb_image[v, u, 3] == 0:
+                    continue
+
+                # Skip pixels that are pure black in the RGB image
+                rgb_color = rgb_image[v, u, :3]
+                if np.all(rgb_color == 0):
+                    continue
+
+                # Compute the 3D point from depth and camera intrinsics
+                X = (u - cx) * Z / fx
+                Y = (v - cy) * Z / fy
+                points.append([X, Y, Z])
+
+                # Add the RGB color (ignoring the alpha channel if present)
+                colors.append(rgb_color / 255.0)  # Normalize RGB
+
+        # Create Open3D point cloud
+        point_cloud = o3d.geometry.PointCloud()
+        point_cloud.points = o3d.utility.Vector3dVector(np.array(points))
+        point_cloud.colors = o3d.utility.Vector3dVector(np.array(colors))
+
+        return point_cloud
+
+    def remove_scraggly_bits(self, point_cloud, eps=0.003, min_points=10):
+        labels = np.array(point_cloud.cluster_dbscan(eps=eps, min_points=min_points, print_progress=False))
+        largest_cluster_label = np.bincount(labels[labels >= 0]).argmax()
+        return point_cloud.select_by_index(np.where(labels == largest_cluster_label)[0])
 
     def on_generate(self):
         print("Generate button clicked!")
-
-        if not self.extracted_images or not self.depth_images:
+        if not self.extracted_images or not self.depth_images or not self.aruco_data:
             print("No images or depth data available.")
             return
 
-        combined_point_cloud = o3d.geometry.PointCloud()
+        # Initialize accumulated point cloud and reuse constants
+        accumulated_point_cloud = o3d.geometry.PointCloud()
+        camera_matrix_cached = camera_matrix()
+        dist_coeffs_cached = dist_coeffs()
+        
+        for i, (rgb_image, depth_image, aruco_data) in enumerate(zip(self.extracted_images, self.depth_images, self.aruco_data)):
+            point_cloud = self.depth_to_point_cloud(rgb_image, depth_image)
+            point_cloud = self.remove_scraggly_bits(point_cloud, min_points=30)
 
-        for rgb_image, depth_image, aruco_image in zip(self.extracted_images, self.depth_images, self.aruco_images):
-            point_cloud, pose_matrix = self.generate_point_cloud_with_pose(rgb_image, depth_image, aruco_image)
+            ids, corners = aruco_data[1], aruco_data[0]
+            objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
 
-            if point_cloud is None:
-                print("No valid point cloud generated from this image.")
-                continue
+            _, rvec, tvec = cv2.solvePnP(
+                objectPoints=objpoints,
+                imagePoints=imgpoints,
+                cameraMatrix=camera_matrix_cached,
+                distCoeffs=dist_coeffs_cached,
+                flags=cv2.SOLVEPNP_ITERATIVE
+            )
+            
+            # # Compute transformation matrix
+            R, _ = cv2.Rodrigues(rvec)
 
-            # Apply pose transformation
-            transformed_point_cloud = point_cloud.transform(pose_matrix)
+            transformation_matrix = np.eye(4)
+            transformation_matrix[:3, :3] = -R
+            # transformation_matrix[:3, 3] = tvec.flatten()
+            transformation_matrix_inverse = np.linalg.inv(transformation_matrix)
 
-            # Combine point clouds
-            combined_point_cloud += transformed_point_cloud
+            print(tvec)
 
-        # Compute normals for the combined point cloud
-        combined_point_cloud.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+            # Apply transformation to all points at once
+            points = np.asarray(point_cloud.points)  # Convert points to a NumPy array
+            points_homogeneous = np.hstack((points, np.ones((points.shape[0], 1))))
+            transformed_points = (transformation_matrix_inverse @ points_homogeneous.T).T[:, :3]
 
-        # Downsample the point cloud
-        combined_point_cloud = combined_point_cloud.voxel_down_sample(voxel_size=0.01)
+            point_cloud.points = o3d.utility.Vector3dVector(transformed_points)
 
-        # Generate mesh using Poisson surface reconstruction
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(combined_point_cloud, depth=9)
+            if i == 0:
+                accumulated_point_cloud = point_cloud
+            else:
+                accumulated_point_cloud += point_cloud
 
-        # Visualize the mesh
-        o3d.visualization.draw_geometries([mesh])
+        # Visualize the accumulated point cloud
+        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+        o3d.visualization.draw_geometries([accumulated_point_cloud, coordinate_frame])
 
+        # # Initialize ICP parameters
+        # max_correspondence_distance = 10
+        # init = np.array([[1., 0., 0., 0.],
+        #                 [0., 1., 0., 0.],
+        #                 [0., 0., 1., 0.],
+        #                 [0., 0., 0., 1.]], dtype=np.float64)
+        
+        # criteria = o3d.pipelines.registration.ICPConvergenceCriteria(
+        #     relative_fitness=1e-6,
+        #     relative_rmse=1e-6,
+        #     max_iteration=30
+        # )
+
+        # accumulated_point_cloud.estimate_normals(
+        # o3d.geometry.KDTreeSearchParamHybrid(radius=0.10, max_nn=5))
+
+        # point_cloud.estimate_normals(
+        # o3d.geometry.KDTreeSearchParamHybrid(radius=0.10, max_nn=5))
+
+        # result_icp = o3d.pipelines.registration.registration_colored_icp(
+        # point_cloud, accumulated_point_cloud, max_correspondence_distance, init, criteria=criteria
+        # )
+
+        # current_transformation = result_icp.transformation
+        # point_cloud.transform(current_transformation)
+
+# if __name__ == "__main__":
+#     '''
+#     This is an example of how to connect the widget and the signal it emits to make other changes to other widgets.
+#     '''
+
+#     app = QApplication(sys.argv)
+
+#     # Create a main window to embed the widget
+#     main_window = QWidget()
+#     main_window.setWindowTitle("Mesh Generator")
+#     main_window.setGeometry(100, 100, 1920, 1080)
+
+#     # Create an instance of the image processing app
+#     image_processing_widget = BackgroundRemover()
+#     generate_widget = MeshGenerator()
+
+#     depth_files = []
+#     rgb_files = []
+
+#     for i in range(1,5):
+#         depth_files.append(f'input_images_2/depth_image_{i}.png')
+#         rgb_files.append(f'input_images_2/rgb_image_{i}.png')
+
+#     # Connect the signal to the slot to show the GenerateWidget and pass images
+#     image_processing_widget.update_complete.connect(generate_widget.set_data)
+#     # image_processing_widget.update_complete.connect(generate_widget.show)
+
+#     image_processing_widget.set_rgbs(rgb_files)
+#     image_processing_widget.set_depths(depth_files)
+
+#     generate_widget.on_generate()
+
+#     # # Set the layout for the main window
+#     # main_layout = QVBoxLayout(main_window)
+#     # main_layout.addWidget(image_processing_widget)
+#     # main_layout.addWidget(generate_widget)
     
-    def generate_point_cloud_with_pose(self, rgb_image, depth_image, aruco_image):
-        """
-        Generates a point cloud from the depth image and calculates the camera pose using ArUco markers.
-        """
-        # Detect ArUco markers in the ArUco image
-        gray_aruco_image = cv2.cvtColor(aruco_image, cv2.COLOR_BGR2GRAY)
-        dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
-        parameters = aruco.DetectorParameters()
-        detector = aruco.ArucoDetector(dictionary, parameters)
-        corners, ids, _ = detector.detectMarkers(gray_aruco_image)
+#     # # Hide the generate widget at first
+#     # # generate_widget.hide()
+#     # # Set layout
+#     # main_window.setLayout(main_layout)
+#     # # main_window.show()
 
-        if ids is None:
-            print("No ArUco markers detected in this image.")
-            return None, None
-
-        # Use solvePnP for each detected marker
-        object_points = np.array([[0, 0, 0], [0, 0.05, 0], [0.05, 0.05, 0], [0.05, 0, 0]], dtype=np.float32)  # Example for a square marker
-        pose_matrices = []
-        for i in range(len(ids)):
-            image_points = corners[i][0]  # Get the corners of the detected marker
-            retval, rvec, tvec = cv2.solvePnP(object_points, image_points, self.camera_matrix, self.dist_coeffs)
-            if retval:
-                # Convert rotation vector to rotation matrix
-                rotation_matrix, _ = cv2.Rodrigues(rvec)
-                pose_matrix = np.eye(4)
-                pose_matrix[:3, :3] = rotation_matrix
-                pose_matrix[:3, 3] = tvec.flatten()
-                pose_matrices.append(pose_matrix)
-
-        # Use the first pose matrix (or combine them as needed)
-        pose_matrix = pose_matrices[0] if pose_matrices else np.eye(4)
-
-        # Convert depth image to point cloud using Open3D
-        depth_o3d = o3d.geometry.Image(depth_image)
-        rgb_o3d = o3d.geometry.Image(rgb_image)
-
-        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(rgb_o3d, depth_o3d)
-        intrinsic = o3d.camera.PinholeCameraIntrinsic(rgb_image.shape[1], rgb_image.shape[0], 
-                                                    self.camera_matrix[0, 0], self.camera_matrix[1, 1],
-                                                    self.camera_matrix[0, 2], self.camera_matrix[1, 2])
-        
-        point_cloud = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, intrinsic)
-        
-        return point_cloud, pose_matrix
-
-
-
-
+#     # sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
+
     '''
     This is an example of how to connect the widget and the signal it emits to make other changes to other widgets.
     '''
@@ -154,9 +260,19 @@ if __name__ == "__main__":
     image_processing_widget = BackgroundRemover()
     generate_widget = MeshGenerator()
 
+    depth_files = []
+    rgb_files = []
+
+    for i in range(1,5):
+        depth_files.append(f'input_images_2/depth_image_{i}.png')
+        rgb_files.append(f'input_images_2/rgb_image_{i}.png')
+
     # Connect the signal to the slot to show the GenerateWidget and pass images
-    image_processing_widget.update_complete.connect(generate_widget.set_images)
+    image_processing_widget.update_complete.connect(generate_widget.set_data)
     image_processing_widget.update_complete.connect(generate_widget.show)
+
+    image_processing_widget.set_rgbs(rgb_files)
+    image_processing_widget.set_depths(depth_files)
 
     # Set the layout for the main window
     main_layout = QVBoxLayout(main_window)
@@ -164,7 +280,7 @@ if __name__ == "__main__":
     main_layout.addWidget(generate_widget)
     
     # Hide the generate widget at first
-    generate_widget.hide()
+    # generate_widget.hide()
     # Set layout
     main_window.setLayout(main_layout)
     main_window.show()
