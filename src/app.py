@@ -17,7 +17,6 @@ from camera import is_camera_connected
 
 from Window_CapturedPhotoReview import CapturedPhotoReviewScreen
 
-
 # PreviewScreen class for the camera feed preview
 class PreviewScreen(QMainWindow):
     def __init__(self, parent):
@@ -39,6 +38,7 @@ class PreviewScreen(QMainWindow):
         layout.addWidget(self.image_label)
         layout.addWidget(self.take_photo_button)
         layout.addWidget(self.next_button)
+
 
         container = QWidget()
         container.setLayout(layout)
@@ -104,17 +104,11 @@ class PreviewScreen(QMainWindow):
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 1)
             next_screen = self.parent.widget(self.parent.currentIndex())
-            next_screen.update_variables()
+            next_screen.update_variables(self.saved_rgb_image_filenames, self.saved_depth_image_filenames)
 
         else:
             print("Already on the last page")
 
-# Function to load the QSS file
-def load_stylesheet(filename):
-    file = QFile(filename)
-    file.open(QFile.ReadOnly | QFile.Text)
-    stream = QTextStream(file)
-    return stream.readAll()
 
 # WelcomeScreen class for the initial welcome screen
 class WelcomeScreen(QWidget):
@@ -140,25 +134,22 @@ class WelcomeScreen(QWidget):
         label1.setStyleSheet("font-weight: bold; font-size: 18px; margin: 15px;")
         # label1.setObjectName("Label1")
 
-        label2 = QLabel("Before clicking next, plug your camera in.")
-        # label2.setObjectName("Label2")
+
+        # Create the label with HTML content
+        label2 = QLabel('If you wish to capture images, ensure a compatible camera is plugged in.<br><br><br>'
+                        'You can read Realsense documentation <a href="https://dev.intelrealsense.com/docs">here</a>.')
+        # Enable HTML formatting
+        label2.setOpenExternalLinks(True)  # Allow links to open in the default web browser
+
         label2.setStyleSheet("""margin-left: 15px;
-    margin-right: 15px;
+    margin-right: 30px;
     margin-top: 10px;
     margin-bottom: 10px;
     font-size: 12px;""")
         
-        label3 = QLabel("Click Next to continue.")
-        # label3.setObjectName("Label3")
-        label3.setStyleSheet("""margin-left: 15px;
-    margin-right: 15px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    font-size: 12px;""")
-
+        
         top_layout.addWidget(label1)
         top_layout.addWidget(label2)
-        top_layout.addWidget(label3)
         top_half.setLayout(top_layout)
 
         layout.addWidget(top_half, 25)
@@ -177,14 +168,32 @@ class WelcomeScreen(QWidget):
 """)
         bottom_layout = QHBoxLayout()
         bottom_widget.setLayout(bottom_layout)
-        
-        # Create next button with specified size and alignment
-        self.next_button = QPushButton("Next")
-        self.next_button.setStyleSheet("background-color: #ededed")
+
+        # Create a horizontal layout for the buttons
+        button_layout = QHBoxLayout()
+
+        # Load button
+        self.load_button = QPushButton("Load")
+        self.load_button.setStyleSheet("background-color: #ededed; margin-right: 5px")
+        self.load_button.setToolTip("Start from a pre-exsting set of images.")
+        self.load_button.setFixedSize(100, 30)
+        self.load_button.setObjectName("LoadButton")
+        self.load_button.clicked.connect(self.on_load_button_pressed)
+        button_layout.addWidget(self.load_button)
+
+        # Next button
+        self.next_button = QPushButton("Capture")
+        self.next_button.setStyleSheet("background-color: #ededed;")
+        self.next_button.setToolTip("Preview your camera output and capture images.")
         self.next_button.setFixedSize(100, 30)
         self.next_button.setObjectName("NextButton")
         self.next_button.clicked.connect(self.check_camera)
-        bottom_layout.addWidget(self.next_button, 0, Qt.AlignRight | Qt.AlignBottom)
+        button_layout.addWidget(self.next_button)
+
+        # Align the button layout to the bottom right
+        bottom_layout.addLayout(button_layout)  # Add without alignment
+        bottom_layout.setAlignment(button_layout, Qt.AlignRight | Qt.AlignBottom)
+
 
         # Create bottom area
         bottom_area = QHBoxLayout()      
@@ -226,24 +235,35 @@ class WelcomeScreen(QWidget):
             # Execute and show the message box
             error_msg.exec_()
         
-    def go_to_back_page(self):
+    def go_to_back_page(self, jump=1):
         current_index = self.parent.currentIndex()
         if current_index > 0:
-            self.parent.setCurrentIndex(current_index - 1) 
+            self.parent.setCurrentIndex(current_index - jump) 
         else:
             print("Already on the first page")
 
-    def go_to_next_page(self):
+    def go_to_next_page(self, jump=1):
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
-            self.parent.setCurrentIndex(current_index + 1)
+            self.parent.setCurrentIndex(current_index + jump)
         else:
             print("Already on the last page")
 
+    def on_load_button_pressed(self):
+        self.saved_rgb_image_filenames, _ = QFileDialog.getOpenFileNames(self, "Open RGB Images", "", "Image Files (*.png *.jpg *.bmp)")
+        self.saved_depth_image_filenames, _ = QFileDialog.getOpenFileNames(self, "Open Depth Images", "", "Image Files (*.png *.jpg *.bmp)")
+
+        if len(self.saved_rgb_image_filenames) and len(self.saved_depth_image_filenames):
+            current_index = self.parent.currentIndex()
+            self.parent.setCurrentIndex(current_index + 3)
+            next_screen = self.parent.widget(self.parent.currentIndex())
+            next_screen.update_variables(self.saved_rgb_image_filenames, self.saved_depth_image_filenames)
+
+
 # Preprocessing Page
 class PreprocessingScreen(QWidget):  
-    def update_variables(self):
-        self.processed_images = self.convert_images()
+    def update_variables(self, rgb_filenames, depth_filenames):
+        self.processed_images = self.convert_images(rgb_filenames, depth_filenames)
         self.image_index = 0
         qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
         self.background_image.setPixmap(QPixmap.fromImage(qimage))
@@ -278,7 +298,6 @@ class PreprocessingScreen(QWidget):
         preprocessing_results_area = QWidget()
         # preprocessing_results_area.setObjectName("Preprocessing_results_area")
         preprocessing_results_area.setStyleSheet("background-color: #d9d9d9;")
-        
 
         # Working within the initial container
         preprocessing_area_layout = QHBoxLayout()
@@ -295,16 +314,6 @@ class PreprocessingScreen(QWidget):
 
         self.background_image = QLabel()
         self.processed_images = []
-        
-        # COMMENT THIS PARA
-        self.processed_images = self.convert_images()
-        self.image_index = 0
-        qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
-        self.background_image.setPixmap(QPixmap.fromImage(qimage))
-        self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
-        self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
-        self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
-
 
         # Center and reduce spacing between background_image_info and background_image_next
         self.background_image_info = QLabel(f"Image #1 of {len(self.processed_images)}")
@@ -339,21 +348,11 @@ class PreprocessingScreen(QWidget):
         graphical_interface_title = QLabel("Graphical 3D interface of input image")
         graphical_interface_title.setStyleSheet("font-size: 12px;")
         
-        graphical_interface_image = QLabel()
-        graphical_interface_image.setStyleSheet("background-color: black")
-        pixmap = QPixmap("../input_images/rgb_image_1.png")
-        graphical_interface_image.setPixmap(pixmap)
-        graphical_interface_image.setScaledContents(True)  # Allow the pixmap to scale with the label
-        graphical_interface_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
-        graphical_interface_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
-
-
         graphical_interface_fs = QPushButton("View fullscreen")
         graphical_interface_fs.setStyleSheet("background-color: #ededed")
 
         graphical_interface_fs.setFixedSize(150, 55)
         graphical_interface_layout.addWidget(graphical_interface_title, 10)
-        graphical_interface_layout.addWidget(graphical_interface_image, 86)
         graphical_interface_layout.addWidget(graphical_interface_fs, 4, alignment=Qt.AlignHCenter)
         
         graphical_interface_section.setLayout(graphical_interface_layout)
@@ -477,10 +476,10 @@ class PreprocessingScreen(QWidget):
             self.background_image.setScaledContents(True)  # Optional: Scale to fit the label
             self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
 
-    def convert_images(self):
+    def convert_images(self, rgb_filenames, depth_filenames):
         processed_images = []
-        rgb_images = self.load_rgb_images()
-        depth_images = self.load_depth_images()
+        rgb_images = self.load_rgb_images(rgb_filenames)
+        depth_images = self.load_depth_images(depth_filenames)
         for i in range(min(len(rgb_images), len(depth_images))):
             # Create mask and extract object with current parameters
             mask = self.create_mask_with_rembg(rgb_images[i])
@@ -542,19 +541,15 @@ class PreprocessingScreen(QWidget):
         object_extracted = cv2.bitwise_and(rgb_image, mask_3channel)
         return object_extracted
     
-    def load_rgb_images(self):
-        folder_path = '../input_images'
-        rgb_image_files = self.get_files_starting_with(folder_path, 'rgb_image')
-        if rgb_image_files:
-            rgb_images = [cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB) for filename in rgb_image_files]
-            return rgb_images
+    def load_rgb_images(self, rgb_filenames=None):
+        folder_path = './input_images/' if not rgb_filenames else ''
+        rgb_images = [cv2.cvtColor(cv2.imread(f"{folder_path}{filename}"), cv2.COLOR_BGR2RGB) for filename in rgb_filenames]
+        return rgb_images
 
-    def load_depth_images(self):
-        folder_path = '../input_images'
-        depth_image_files = self.get_files_starting_with(folder_path, 'depth_image')
-        if depth_image_files:
-            depth_images = [cv2.normalize(cv2.imread(filename, cv2.IMREAD_UNCHANGED), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) for filename in depth_image_files]
-            return depth_images
+    def load_depth_images(self, depth_filenames=None):
+        folder_path = './input_images/' if not depth_filenames else ''
+        depth_images = [cv2.normalize(cv2.imread(f"{folder_path}{filename}", cv2.IMREAD_UNCHANGED), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) for filename in depth_filenames]
+        return depth_images
         
     def go_to_back_page(self):
         current_index = self.parent.currentIndex()
@@ -604,14 +599,14 @@ class MainApp(QMainWindow):
         self.preview_screen = PreviewScreen(self.central_widget)
         self.captured_photoReview_screen = CapturedPhotoReviewScreen(self.central_widget)
         self.preprocessingScreen = PreprocessingScreen(self.central_widget)
-        self.finishing_screen = FinishingScreen(self.central_widget)
+        # self.finishing_screen = FinishingScreen(self.central_widget)
 
         # Add screens to the stacked widget
         self.central_widget.addWidget(self.welcome_screen)
         self.central_widget.addWidget(self.preview_screen)
         self.central_widget.addWidget(self.captured_photoReview_screen)
         self.central_widget.addWidget(self.preprocessingScreen)
-        self.central_widget.addWidget(self.finishing_screen)
+        # self.central_widget.addWidget(self.finishing_screen)
         
         self.central_widget.setCurrentIndex(0)  # Start with Welcome Screen
 
@@ -621,12 +616,8 @@ import os
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    print("Current working directory:", os.getcwd())
-
-
-    # Load the stylesheet from the QSS file
-    stylesheet = load_stylesheet('style.qss')
-    app.setStyleSheet(stylesheet)
+    with open("src/style.qss","r") as fh:
+        app.setStyleSheet(fh.read())
 
     main_app = MainApp()
     main_app.show()
