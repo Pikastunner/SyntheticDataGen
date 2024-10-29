@@ -8,7 +8,6 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
-from Screens.Settings import create_settings_button
 
 OUTPUT_PATH = "input_images"
 # OUTPUT_PATH = "aligned_images"
@@ -103,9 +102,6 @@ class CapturedPhotoReviewScreen(QWidget):
         # Row 4: Buttons "Back" and "Next", right aligned
         button_layout = QHBoxLayout()
         button_layout.addStretch(1)  # Pushes the buttons to the right
-
-        settings_button, _ = create_settings_button(self)
-        button_layout.addWidget(settings_button, 0, Qt.AlignLeft | Qt.AlignBottom)
 
         back_button = QPushButton("Back")
         back_button.clicked.connect(self.go_to_back_page)

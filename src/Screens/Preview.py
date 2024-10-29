@@ -9,8 +9,6 @@ from PyQt5.QtCore import Qt
 from camera import CameraWorker
 from camera import is_camera_connected
 
-from Screens.Settings import create_settings_button
-
 class PreviewScreen(QMainWindow):
     def __init__(self, parent):
         super().__init__()
@@ -27,8 +25,6 @@ class PreviewScreen(QMainWindow):
         bottom_layout = QHBoxLayout()
         self.next_button = QPushButton("Next", self)
         self.next_button.clicked.connect(self.go_to_next_page)
-        settings_button, _ = create_settings_button(self)
-        bottom_layout.addWidget(settings_button, 0, Qt.AlignLeft | Qt.AlignBottom)
         bottom_layout.addWidget(self.next_button)
 
         layout = QVBoxLayout()
