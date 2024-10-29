@@ -19,7 +19,7 @@ import open3d as o3d
 
 import numpy.linalg as la
 
-from board import *
+from params import *
 
 # Add necessary imports at the beginning
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QSlider)

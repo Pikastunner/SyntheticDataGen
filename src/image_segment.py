@@ -10,7 +10,7 @@ from rembg import remove
 from PIL import Image
 import os
 
-from board import *
+from params import *
 
 class BackgroundRemover(QWidget):
     '''
@@ -186,13 +186,10 @@ class BackgroundRemover(QWidget):
         parameters.useAruco3Detection = True
         parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
         parameters.cornerRefinementMaxIterations = 40
-        # parameters.polygonalApproxAccuracyRate = 0.05  # Increase for more lenient approximation
-
 
         # Detect ArUco markers before background removal
         detector = aruco.ArucoDetector(dictionary, parameters)
         corners, ids, rejected = detector.detectMarkers(gray_image)
-
 
         if ids is not None:
             corners, ids, _, recovered = detector.refineDetectedMarkers(gray_image, board=aruco_board(), detectedCorners=corners, detectedIds=ids, rejectedCorners=rejected,cameraMatrix=camera_matrix(),distCoeffs=dist_coeffs())
