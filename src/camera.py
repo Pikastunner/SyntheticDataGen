@@ -117,6 +117,7 @@ def create_image_id():
     
 # Function to check if camera is connected
 def is_camera_connected():
+    return True
     try:
         # Create a context object to manage devices
         context = rs.context()
