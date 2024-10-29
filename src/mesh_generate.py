@@ -84,7 +84,7 @@ class MeshGenerator(QWidget):
 
         for v in range(h):
             for u in range(w):
-                Z = depth_image[v, u] / 1000.0  # Convert depth to meters
+                Z = (depth_image[v, u] / 1000.0) # Convert depth to meters
                 
                 # Skip if depth is zero (black in the depth map)
                 if Z == 0:
@@ -100,8 +100,8 @@ class MeshGenerator(QWidget):
                     continue
 
                 # Compute the 3D point from depth and camera intrinsics
-                X = (u - cx) * Z / fx
-                Y = (v - cy) * Z / fy
+                X = ((u - cx) * Z / fx)
+                Y = ((v - cy) * Z / fy)
                 points.append([X, Y, Z])
 
                 # Add the RGB color (ignoring the alpha channel if present)
@@ -131,9 +131,6 @@ class MeshGenerator(QWidget):
         dist_coeffs_cached = dist_coeffs()
         
         for i, (rgb_image, depth_image, aruco_data) in enumerate(zip(self.extracted_images, self.depth_images, self.aruco_data)):
-            point_cloud = self.depth_to_point_cloud(rgb_image, depth_image)
-            point_cloud = self.remove_scraggly_bits(point_cloud, min_points=30)
-
             ids, corners = aruco_data[1], aruco_data[0]
             objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
 
@@ -144,16 +141,20 @@ class MeshGenerator(QWidget):
                 distCoeffs=dist_coeffs_cached,
                 flags=cv2.SOLVEPNP_ITERATIVE
             )
-            
-            # # Compute transformation matrix
+
             R, _ = cv2.Rodrigues(rvec)
 
+            point_cloud = self.depth_to_point_cloud(rgb_image, depth_image)
+            point_cloud = self.remove_scraggly_bits(point_cloud, min_points=30)
+            
+            # # # Compute transformation matrix
+
             transformation_matrix = np.eye(4)
-            transformation_matrix[:3, :3] = -R
-            # transformation_matrix[:3, 3] = tvec.flatten()
+            transformation_matrix[:3, :3] = R
+            transformation_matrix[:3, 3] = tvec.flatten()
             transformation_matrix_inverse = np.linalg.inv(transformation_matrix)
 
-            print(tvec)
+            # print(tvec)
 
             # Apply transformation to all points at once
             points = np.asarray(point_cloud.points)  # Convert points to a NumPy array
@@ -170,6 +171,7 @@ class MeshGenerator(QWidget):
         # Visualize the accumulated point cloud
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
         o3d.visualization.draw_geometries([accumulated_point_cloud, coordinate_frame])
+
 
         # # Initialize ICP parameters
         # max_correspondence_distance = 10
@@ -263,7 +265,7 @@ if __name__ == "__main__":
     depth_files = []
     rgb_files = []
 
-    for i in range(1,5):
+    for i in range(10,14):
         depth_files.append(f'input_images_2/depth_image_{i}.png')
         rgb_files.append(f'input_images_2/rgb_image_{i}.png')
 
