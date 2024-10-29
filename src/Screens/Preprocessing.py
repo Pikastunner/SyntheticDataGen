@@ -10,15 +10,30 @@ from rembg import remove
 from PIL import Image
 import re
 
+from params import *
 
 OUTPUT_PATH = "input_images"
 
 # Preprocessing Page
 class PreprocessingScreen(QWidget):  
     def update_variables(self, rgb_filenames, depth_filenames):
-        self.processed_images = self.convert_images(rgb_filenames, depth_filenames)
+        self.processed_images, self.depth_images, self.aruco_datas = self.process_images(rgb_filenames, depth_filenames)
         self.image_index = 0
-        qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
+
+        # Annotate image with board centre
+        img = self.processed_images[self.image_index]
+
+        corners = self.aruco_datas[self.image_index][0]
+        ids = self.aruco_datas[self.image_index][1]
+
+        board = aruco_board()
+        objpoints, imgpoints = board.matchImagePoints(corners, ids)
+
+        _, rvec, tvec = cv2.solvePnP(objectPoints=objpoints, imagePoints=imgpoints, cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), flags=cv2.SOLVEPNP_ITERATIVE)
+        annotated_image = cv2.drawFrameAxes(img.copy(), cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), rvec=rvec, tvec=tvec , thickness=3, length=0.02)
+
+        ### display the image with centre of the aruco board 
+        qimage = self.numpy_to_qimage(annotated_image)
         self.background_image.setPixmap(QPixmap.fromImage(qimage))
         self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
         self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
@@ -69,16 +84,6 @@ class PreprocessingScreen(QWidget):
         self.background_image = QLabel()
         self.processed_images = []
         
-        # COMMENT THIS PARA
-        # self.processed_images = self.convert_images()
-        # self.image_index = 0
-        # qimage = self.numpy_to_qimage(self.processed_images[self.image_index])
-        # self.background_image.setPixmap(QPixmap.fromImage(qimage))
-        # self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
-        # self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
-        # self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
-
-
         # Center and reduce spacing between background_image_info and background_image_next
         self.background_image_info = QLabel(f"Image #1 of {len(self.processed_images)}")
         self.background_image_info.setStyleSheet("font-size: 12px;")
@@ -245,21 +250,36 @@ class PreprocessingScreen(QWidget):
     def display_current_image(self):
         if self.processed_images:  # Ensure there are images to display
             current_image = self.processed_images[self.image_index]
-            qimage = self.numpy_to_qimage(current_image)
+            
+            corners = self.aruco_datas[self.image_index][0]
+            ids = self.aruco_datas[self.image_index][1]
+
+            board = aruco_board()
+            objpoints, imgpoints = board.matchImagePoints(corners, ids)
+
+            _, rvec, tvec = cv2.solvePnP(objectPoints=objpoints, imagePoints=imgpoints, cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), flags=cv2.SOLVEPNP_ITERATIVE)
+            annotated_image = cv2.drawFrameAxes(current_image.copy(), cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), rvec=rvec, tvec=tvec , thickness=3, length=0.02)
+
+            ### display the image with centre of the aruco board 
+            qimage = self.numpy_to_qimage(annotated_image)
+
             self.background_image.setPixmap(QPixmap.fromImage(qimage))
             self.background_image.setScaledContents(True)  # Optional: Scale to fit the label
             self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
 
-    def convert_images(self, rgb_filenames, depth_filenames):
+
+    def process_images(self, rgb_filenames, depth_filenames):
         processed_images = []
         rgb_images = self.load_rgb_images(rgb_filenames)
         depth_images = self.load_depth_images(depth_filenames)
+        aruco_datas = []
         for i in range(min(len(rgb_images), len(depth_images))):
-            # Create mask and extract object with current parameters
-            mask = self.create_mask_with_rembg(rgb_images[i])
+            # Extract object and extract aruco information
+            mask, _, aruco_data = self.create_mask_with_rembg(rgb_images[i])
             object_extracted = self.apply_mask(rgb_images[i], mask)
             processed_images.append(object_extracted)
-        return processed_images
+            aruco_datas.append(aruco_data)
+        return processed_images, depth_images, aruco_datas
     
     def numpy_to_qimage(self, img):
         height, width, channel = img.shape
@@ -269,38 +289,59 @@ class PreprocessingScreen(QWidget):
 
     # Function to create a mask using rembg
     def create_mask_with_rembg(self, rgb_image):
-        # Convert the image to a PIL image format for rembg processing
-        pil_image = Image.fromarray(rgb_image)
-        
-        # Use rembg to remove the background
-        result_image = remove(pil_image)
-        
-        # Convert the result back to an OpenCV format (numpy array)
-        result_np = np.array(result_image)
-        
-        # Extract the alpha channel (background removed areas will be transparent)
-        mask = result_np[:, :, 3]  # Alpha channel is the fourth channel
-
         # Convert RGB image to grayscale for ArUco detection
         gray_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY)
 
         # Define the dictionary of ArUco markers
-        dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
+        dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+
+        # Adjust DetectorParameters for more sensitivity
         parameters = aruco.DetectorParameters()
+        parameters.adaptiveThreshWinSizeMax = 75  # Increase max value for better handling of varying light
+        parameters.useAruco3Detection = True
+        parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
+        parameters.cornerRefinementMaxIterations = 40
+
+        # Detect ArUco markers before background removal
         detector = aruco.ArucoDetector(dictionary, parameters)
-        corners, _, _ = detector.detectMarkers(gray_image)
+        corners, ids, rejected = detector.detectMarkers(gray_image)
+
+        if ids is not None:
+            corners, ids, _, recovered = detector.refineDetectedMarkers(gray_image, board=aruco_board(), detectedCorners=corners, detectedIds=ids, rejectedCorners=rejected,cameraMatrix=camera_matrix(),distCoeffs=dist_coeffs())
+            print(f"{len(ids)} aruco markers found")
 
         # Create a mask for detected ArUco markers
-        if corners: 
-            aruco_mask = np.zeros_like(mask)
+        aruco_mask = np.zeros(rgb_image.shape[:2], dtype=np.uint8)
+        if corners:
             for corner in corners:
                 cv2.fillConvexPoly(aruco_mask, corner[0].astype(int), 255)
-            # Combine the masks using a logical OR operation
-            combined_mask = cv2.bitwise_or(mask, aruco_mask)
-            return combined_mask
-        else:
-            # If no ArUco markers are detected, return the original mask
-            return mask
+
+        # Dilate the ArUco marker mask to grow it slightly
+        kernel_size = 5  # Adjust size based on the thickness of outlines
+        dilation_kernel = np.ones((kernel_size, kernel_size), np.uint8)
+        dilated_aruco_mask = cv2.dilate(aruco_mask, dilation_kernel, iterations=1)
+
+        # Convert the image to a PIL image format for rembg processing
+        pil_image = Image.fromarray(rgb_image)
+
+        # Use rembg to remove the background
+        result_image = remove(pil_image)
+
+        # Convert the result back to an OpenCV format (numpy array)
+        result_np = np.array(result_image)
+
+        # Extract the alpha channel (background removed areas will be transparent)
+        object_mask = result_np[:, :, 3]  # Alpha channel is the fourth channel
+
+        # Invert the dilated ArUco mask so that the area around the markers is excluded from the object
+        inverted_dilated_aruco_mask = cv2.bitwise_not(dilated_aruco_mask)
+
+        # Apply the inverted dilated mask to the object mask to exclude the markers and their surroundings
+        refined_object_mask = cv2.bitwise_and(object_mask, inverted_dilated_aruco_mask)
+
+        # Return the refined object mask, the aruco mask and the aruco information
+        return refined_object_mask, aruco_mask, (corners, ids)
+    
 
     def get_files_starting_with(self, folder_path, prefix):
         files = []
