@@ -34,12 +34,14 @@ class PreprocessingScreen(QWidget):
             corners = self.aruco_datas[i][0]
             ids = self.aruco_datas[i][1]
 
-            board = aruco_board()
-            objpoints, imgpoints = board.matchImagePoints(corners, ids)
+            if len(ids) < 2:
+                continue
 
+            objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
             _, rvec, tvec = cv2.solvePnP(objectPoints=objpoints, imagePoints=imgpoints, cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), flags=cv2.SOLVEPNP_ITERATIVE)
             self.annotated_images.append(cv2.drawFrameAxes(img.copy(), cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), rvec=rvec, tvec=tvec , thickness=3, length=0.02))
-
+            
+            
         ## DISPLAY THE FIRST IMAGE
         qimage = self.numpy_to_qimage(self.annotated_images[self.image_index])
         self.background_image.setPixmap(QPixmap.fromImage(qimage))
@@ -369,15 +371,19 @@ class PreprocessingScreen(QWidget):
         processed_images = []
         rgb_images = self.load_rgb_images(rgb_filenames)
         depth_images = self.load_depth_images(depth_filenames)
-        aruco_datas = []
+        aruco_returned = []
+        depth_returned = []
         for i in range(min(len(rgb_images), len(depth_images))):
             # Extract object and extract aruco information
             mask, _, aruco_data = self.create_mask_with_rembg(rgb_images[i])
+            if len(aruco_data[1]) < 2:
+                continue
 
             object_extracted = self.apply_mask(rgb_images[i], mask)
             processed_images.append(object_extracted)
-            aruco_datas.append(aruco_data)
-        return processed_images, depth_images, aruco_datas
+            aruco_returned.append(aruco_data)
+            depth_returned.append(depth_images[i])
+        return processed_images, depth_returned, aruco_returned
     
     def numpy_to_qimage(self, img):
         height, width, channel = img.shape
@@ -399,8 +405,8 @@ class PreprocessingScreen(QWidget):
         img = np.zeros((image_size[1], image_size[0], 3), dtype=np.uint8)
         
         # Extract x and y coordinates (z is ignored for 2D projection)
-        x_coords = points[:, 0]
-        y_coords = points[:, 1]
+        x_coords = points[:, 1]
+        y_coords = points[:, 2]
 
         # Normalize x and y coordinates to fit within image dimensions
         x_normalized = ((x_coords - x_coords.min()) / (x_coords.max() - x_coords.min()) * (image_size[0] - 1)).astype(int)
@@ -442,7 +448,7 @@ class PreprocessingScreen(QWidget):
 
         for v in range(h):
             for u in range(w):
-                Z = depth_image[v, u] / 1000.0  # Convert depth to meters
+                Z = (depth_image[v, u] / 1000.0) # Convert depth to meters
                 
                 # Skip if depth is zero (black in the depth map)
                 if Z == 0:
@@ -458,8 +464,8 @@ class PreprocessingScreen(QWidget):
                     continue
 
                 # Compute the 3D point from depth and camera intrinsics
-                X = (u - cx) * Z / fx
-                Y = (v - cy) * Z / fy
+                X = ((u - cx) * Z / fx)
+                Y = ((v - cy) * Z / fy)
                 points.append([X, Y, Z])
 
                 # Add the RGB color (ignoring the alpha channel if present)
@@ -480,38 +486,34 @@ class PreprocessingScreen(QWidget):
 
         # Initialize accumulated point cloud and reuse constants
         accumulated_point_cloud = o3d.geometry.PointCloud()
-        camera_matrix_cached = camera_matrix()
         dist_coeffs_cached = dist_coeffs()
         
         for i, (rgb_image, depth_image, aruco_data) in enumerate(zip(self.processed_images, self.depth_images, self.aruco_datas)):
-            point_cloud = self.depth_to_point_cloud(rgb_image, depth_image)
-            point_cloud = self.remove_scraggly_bits(point_cloud, min_points=30)
-
             ids, corners = aruco_data[1], aruco_data[0]
 
-            ## TODO FOR NOW IGNORING POINT CLOUDS WITH <2 ARCURO MARKERS BECAUSE THEY SUCK 
-            if ids is None or len(ids) <= 1:
+            if ids is None or len(ids) < 2: # Dont bother if there arent enough markers
                 continue
 
             objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
-
+           
             _, rvec, tvec = cv2.solvePnP(
                 objectPoints=objpoints,
                 imagePoints=imgpoints,
-                cameraMatrix=camera_matrix_cached,
+                cameraMatrix=camera_matrix(),
                 distCoeffs=dist_coeffs_cached,
                 flags=cv2.SOLVEPNP_ITERATIVE
             )
-            
-            # # Compute transformation matrix
+
             R, _ = cv2.Rodrigues(rvec)
 
+            point_cloud = self.depth_to_point_cloud(rgb_image, depth_image)
+            point_cloud = self.remove_scraggly_bits(point_cloud, min_points=30)
+            
+            # Compute transformation matrix
             transformation_matrix = np.eye(4)
             transformation_matrix[:3, :3] = R
             transformation_matrix[:3, 3] = tvec.flatten()
             transformation_matrix_inverse = np.linalg.inv(transformation_matrix)
-
-            print(tvec)
 
             # Apply transformation to all points at once
             points = np.asarray(point_cloud.points)  # Convert points to a NumPy array
@@ -523,14 +525,25 @@ class PreprocessingScreen(QWidget):
             if i == 0:
                 accumulated_point_cloud = point_cloud
             else:
-                accumulated_point_cloud += point_cloud
+                
+                # Apply ICP to align the current point cloud with the accumulated point cloud
+                icp_result = o3d.pipelines.registration.registration_icp(
+                    point_cloud, 
+                    accumulated_point_cloud, 
+                    max_correspondence_distance=0.01,  # Adjust based on scale
+                    estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint()
+                )
 
+                # Transform the current point cloud using the ICP result
+                point_cloud.transform(icp_result.transformation)
+                accumulated_point_cloud += point_cloud                
+
+        # # Visualize the accumulated point cloud
         accumulated_point_cloud.estimate_normals(
-        o3d.geometry.KDTreeSearchParamHybrid(radius=0.10, max_nn=5))
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.05, max_nn=30)  # Adjust radius and max_nn as needed
+        )
 
-        # Visualize the accumulated point cloud
-        return accumulated_point_cloud
-
+        return accumulated_point_cloud 
 
     ############################################################
             # OVERARCHING PAGE CONTROL

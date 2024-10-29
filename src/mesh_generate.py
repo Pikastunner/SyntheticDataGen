@@ -127,7 +127,6 @@ class MeshGenerator(QWidget):
 
         # Initialize accumulated point cloud and reuse constants
         accumulated_point_cloud = o3d.geometry.PointCloud()
-        camera_matrix_cached = camera_matrix()
         dist_coeffs_cached = dist_coeffs()
         
         for i, (rgb_image, depth_image, aruco_data) in enumerate(zip(self.extracted_images, self.depth_images, self.aruco_data)):
@@ -137,7 +136,7 @@ class MeshGenerator(QWidget):
             _, rvec, tvec = cv2.solvePnP(
                 objectPoints=objpoints,
                 imagePoints=imgpoints,
-                cameraMatrix=camera_matrix_cached,
+                cameraMatrix=camera_matrix(),
                 distCoeffs=dist_coeffs_cached,
                 flags=cv2.SOLVEPNP_ITERATIVE
             )
@@ -147,14 +146,11 @@ class MeshGenerator(QWidget):
             point_cloud = self.depth_to_point_cloud(rgb_image, depth_image)
             point_cloud = self.remove_scraggly_bits(point_cloud, min_points=30)
             
-            # # # Compute transformation matrix
-
+            # Compute transformation matrix
             transformation_matrix = np.eye(4)
             transformation_matrix[:3, :3] = R
             transformation_matrix[:3, 3] = tvec.flatten()
             transformation_matrix_inverse = np.linalg.inv(transformation_matrix)
-
-            # print(tvec)
 
             # Apply transformation to all points at once
             points = np.asarray(point_cloud.points)  # Convert points to a NumPy array
@@ -166,84 +162,26 @@ class MeshGenerator(QWidget):
             if i == 0:
                 accumulated_point_cloud = point_cloud
             else:
-                accumulated_point_cloud += point_cloud
+                
+                # Apply ICP to align the current point cloud with the accumulated point cloud
+                icp_result = o3d.pipelines.registration.registration_icp(
+                    point_cloud, 
+                    accumulated_point_cloud, 
+                    max_correspondence_distance=0.01,  # Adjust based on scale
+                    estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint()
+                )
+
+                # Transform the current point cloud using the ICP result
+                point_cloud.transform(icp_result.transformation)
+                accumulated_point_cloud += point_cloud                
 
         # Visualize the accumulated point cloud
+        accumulated_point_cloud.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.05, max_nn=30)  # Adjust radius and max_nn as needed
+        )
+
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
         o3d.visualization.draw_geometries([accumulated_point_cloud, coordinate_frame])
-
-
-        # # Initialize ICP parameters
-        # max_correspondence_distance = 10
-        # init = np.array([[1., 0., 0., 0.],
-        #                 [0., 1., 0., 0.],
-        #                 [0., 0., 1., 0.],
-        #                 [0., 0., 0., 1.]], dtype=np.float64)
-        
-        # criteria = o3d.pipelines.registration.ICPConvergenceCriteria(
-        #     relative_fitness=1e-6,
-        #     relative_rmse=1e-6,
-        #     max_iteration=30
-        # )
-
-        # accumulated_point_cloud.estimate_normals(
-        # o3d.geometry.KDTreeSearchParamHybrid(radius=0.10, max_nn=5))
-
-        # point_cloud.estimate_normals(
-        # o3d.geometry.KDTreeSearchParamHybrid(radius=0.10, max_nn=5))
-
-        # result_icp = o3d.pipelines.registration.registration_colored_icp(
-        # point_cloud, accumulated_point_cloud, max_correspondence_distance, init, criteria=criteria
-        # )
-
-        # current_transformation = result_icp.transformation
-        # point_cloud.transform(current_transformation)
-
-# if __name__ == "__main__":
-#     '''
-#     This is an example of how to connect the widget and the signal it emits to make other changes to other widgets.
-#     '''
-
-#     app = QApplication(sys.argv)
-
-#     # Create a main window to embed the widget
-#     main_window = QWidget()
-#     main_window.setWindowTitle("Mesh Generator")
-#     main_window.setGeometry(100, 100, 1920, 1080)
-
-#     # Create an instance of the image processing app
-#     image_processing_widget = BackgroundRemover()
-#     generate_widget = MeshGenerator()
-
-#     depth_files = []
-#     rgb_files = []
-
-#     for i in range(1,5):
-#         depth_files.append(f'input_images_2/depth_image_{i}.png')
-#         rgb_files.append(f'input_images_2/rgb_image_{i}.png')
-
-#     # Connect the signal to the slot to show the GenerateWidget and pass images
-#     image_processing_widget.update_complete.connect(generate_widget.set_data)
-#     # image_processing_widget.update_complete.connect(generate_widget.show)
-
-#     image_processing_widget.set_rgbs(rgb_files)
-#     image_processing_widget.set_depths(depth_files)
-
-#     generate_widget.on_generate()
-
-#     # # Set the layout for the main window
-#     # main_layout = QVBoxLayout(main_window)
-#     # main_layout.addWidget(image_processing_widget)
-#     # main_layout.addWidget(generate_widget)
-    
-#     # # Hide the generate widget at first
-#     # # generate_widget.hide()
-#     # # Set layout
-#     # main_window.setLayout(main_layout)
-#     # # main_window.show()
-
-#     # sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
 
