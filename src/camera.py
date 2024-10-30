@@ -107,31 +107,18 @@ def save_images(color_image, depth_image):
     cv2.imwrite(depth_image_colormap_filename, depth_colormap)
     cv2.imwrite(depth_image_filename, depth_image)
 
-
     return rgb_image_filename, depth_image_filename, depth_image_colormap_filename
 
 def create_image_id():
     """Create a unique image ID based on the number of files in the output folder"""
     files = os.listdir(OUTPUT_PATH)
     return int(len(files) / 3)
-    
-# Function to check if camera is connected
+
 def is_camera_connected():
-    return True
     try:
-        # Create a context object to manage devices
         context = rs.context()
-
-        # Get a list of connected devices
         devices = context.query_devices()
-
-        # Check if any devices are connected
-        if len(devices) > 0:
-            print(f"Connected devices: {len(devices)}")
-            return True
-        else:
-            print("No RealSense devices connected.")
-            return False
+        return len(devices) > 0
     except Exception as e:
         print(f"Error while checking devices: {str(e)}")
         return False
