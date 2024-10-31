@@ -27,7 +27,7 @@ class FinishingScreen(QWidget):
     font-size: 18px;
     margin: 15px; """)
 
-        self.directory_path = '../input_images'
+        self.directory_path = 'input_images'
         location_text = QLabel(f"View data in the following <a href='{self.directory_path}'>directory</a>")
         location_text.setStyleSheet("""    margin-left: 15px;
     margin-right: 15px;
