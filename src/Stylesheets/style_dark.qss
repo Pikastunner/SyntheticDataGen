@@ -1,5 +1,9 @@
 QWidget#GreenHalf {
-    background-color: #84bf3b;
+    background-color: #e10e4b;
+}
+
+QMainWindow {
+    background-color: #1e1e1e; /* Dark background for the main window */
 }
 
 QLabel#Label1, 
@@ -9,6 +13,7 @@ QLabel#FinScreenTitle {
     font-size: 18px;
     font-weight: bold;
     margin: 15px;
+    color: white; /* Light text color */
 }
 
 QLabel#Label2, 
@@ -16,18 +21,17 @@ QLabel#FinScreenLocationText,
 QLabel#FinScreenDataCaption {
     font-size: 12px;
     margin: 10px 30px 10px 15px;
+    color: #cccccc; /* Lighter gray text */
 }
 
-QLabel#FinImageInfo, 
-QLabel#PreprocessingTitle, 
-QLabel#PreprocessingBackgroundImageInfo,
-QLabel#PreprocessingGraphicalInterface,
-QLabel#PreprocessingDirectoryInstructions {
-    font-size: 12px;
+
+QLabel {
+    color: #cccccc; /* Lighter gray text */
+
 }
 
 QLabel#PreprocessingGraphicalInterfaceImage {
-    background-color: black;
+    background-color: #1e1e1e; /* Dark background */
 }
 
 QWidget#BottomWidget,
@@ -42,7 +46,7 @@ QWidget#FinSmallImageRegion,
 QWidget#PreprocessingTitleArea,
 QWidget#PreprocessingDirectoryArea,
 QWidget#PreprocessingNavigationArea {
-    background-color: #d9d9d9;
+    background-color: #2e2e2e; /* Darker background */
 }
 
 QWidget#PreprocessingBackgroundSection, 
@@ -51,8 +55,9 @@ QWidget#PreprocessingGraphInterfaceSection {
 }
 
 QLineEdit#PreprocessingDirectoryInput {
-    background-color: #ededed; 
-    border: none;
+    background-color: #3c3c3c; /* Darker input field */
+    border: 1px solid #555555; /* Slight border for visibility */
+    color: white; /* Light text color */
 }
 
 QWidget#FinScreenLargeImageArea {
@@ -64,7 +69,8 @@ QWidget#FinSmallImageArea {
 }
 
 QPushButton {
-    background-color: #ededed;
+    background-color: #3c3c3c; /* Dark button */
+    color: white; /* Light text color */
 }
 
 QPushButton#BackButton {
@@ -72,12 +78,19 @@ QPushButton#BackButton {
 }
 
 QLabel#ImageFrame {
-    border: 2px solid black;
+    border: 2px solid #555555; /* Lighter border color */
 }
 
 QLabel#PhotoReviewHeading {
     font-size: 18pt; 
     font-weight: bold;
+    color: white; /* Light text color */
+}
+
+QPushButton#LightButton {
+    background: transparent; 
+    border: none; 
+    color: #cccccc; /* Lighter gray text */
 }
 
 

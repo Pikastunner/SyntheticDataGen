@@ -99,7 +99,7 @@ class PreprocessingScreen(QWidget):
 
         background_image_next = QPushButton("Next")
         background_image_next.clicked.connect(self.move_to_next)
-        background_image_next.setFixedSize(120, 55)
+        background_image_next.setFixedSize(120, 40)
 
         # Add a layout to group the info and button together
         center_widget = QWidget()
@@ -132,7 +132,7 @@ class PreprocessingScreen(QWidget):
         graphical_interface_fs = QPushButton("View fullscreen")
         graphical_interface_fs.clicked.connect(self.view_3d_interface)
 
-        graphical_interface_fs.setFixedSize(150, 55)
+        graphical_interface_fs.setFixedSize(150, 40)
         graphical_interface_layout.addWidget(graphical_interface_title, 10)
         graphical_interface_layout.addWidget(self.graphical_interface_image, 86)
         graphical_interface_layout.addWidget(graphical_interface_fs, 4, alignment=Qt.AlignHCenter)
