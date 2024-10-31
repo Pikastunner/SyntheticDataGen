@@ -15,6 +15,8 @@ class MainApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("Synthetic Data Generator")
         self.setFixedSize(700, 650)
+        self.setWindowIcon(QIcon("./src/Icons/app_icon.svg"))  # Use a valid path to your SVG file
+
         
         # Central widget for layout management
         self.central_widget = QWidget()
