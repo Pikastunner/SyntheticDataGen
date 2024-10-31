@@ -15,7 +15,7 @@ class MainApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("Synthetic Data Generator")
         self.setFixedSize(700, 650)
-        self.setWindowIcon(QIcon("./src/Icons/app_icon.svg"))  # Use a valid path to your SVG file
+        self.setWindowIcon(QIcon("./src/Icons/app_icon.svg")) 
 
         
         # Central widget for layout management
@@ -29,7 +29,7 @@ class MainApp(QMainWindow):
         
         # Main widget for switching between scenes
         self.stacked_widget = QStackedWidget()
-        self.stacked_widget.setContentsMargins(0, 0, 0, 0)  # Ensure no margins inside the stacked widget
+        self.stacked_widget.setContentsMargins(0, 0, 0, 0) 
         self.main_layout.addWidget(self.stacked_widget)
         
         # Add screens
@@ -38,7 +38,7 @@ class MainApp(QMainWindow):
         self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(PreprocessingScreen(self.stacked_widget))
         
-        self.stacked_widget.setCurrentIndex(0)  # Start with the Welcome screen
+        self.stacked_widget.setCurrentIndex(0)
 
         # Add settings button to each of the Screens
         self.light = True
