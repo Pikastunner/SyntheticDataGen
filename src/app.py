@@ -1,18 +1,5 @@
-import os
 import sys
-import cv2
-import numpy as np
-from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, 
-                             QFileDialog, QMessageBox, QListWidget, QMainWindow, QStackedWidget, QSizePolicy)
-from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import Qt, QFile, QTextStream, QThread, pyqtSignal
-import cv2.aruco as aruco
-from rembg import remove
-from PIL import Image
-import re
-
-from camera import CameraWorker
-from camera import is_camera_connected
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QStackedWidget)
 
 from Screens.Finishing import FinishingScreen
 from Screens.CapturedPhotoReview import CapturedPhotoReviewScreen

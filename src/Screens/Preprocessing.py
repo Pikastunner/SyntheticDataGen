@@ -8,13 +8,10 @@ from PyQt5.QtCore import Qt
 import cv2.aruco as aruco
 from rembg import remove
 from PIL import Image
-import re
 
 from params import *
 
 import open3d as o3d
-
-import numpy.linalg as la
 
 OUTPUT_PATH = "input_images"
 
@@ -67,15 +64,11 @@ class PreprocessingScreen(QWidget):
 
         # Set up the initial container
         title_layout = QVBoxLayout()
-        title_area = QWidget()
-        # title_area.setObjectName("TitleArea")
-        title_area.setStyleSheet("background-color: #d9d9d9;")
+        title_area = QWidget(objectName="PreprocessingTitleArea")
 
         # Working within the initial container
         title_text_layout = QVBoxLayout()
-        label = QLabel("Preprocessing")
-        # label.setObjectName("PreprocessingLabel")
-        label.setStyleSheet("font-size: 18px; margin: 15px;")
+        label = QLabel("Preprocessing", objectName="PreprocessingLabel")
         title_text_layout.addWidget(label)
         title_area.setLayout(title_text_layout)
 
@@ -84,36 +77,28 @@ class PreprocessingScreen(QWidget):
 
         # Set up the initial container
         preprocessing_results_layout = QVBoxLayout()
-        preprocessing_results_area = QWidget()
-        # preprocessing_results_area.setObjectName("Preprocessing_results_area")
-        preprocessing_results_area.setStyleSheet("background-color: #d9d9d9;")
-        
+        preprocessing_results_area = QWidget(objectName="PreprocessingResultsArea")
 
         # Working within the initial container
         preprocessing_area_layout = QHBoxLayout()
         preprocessing_area_layout.setContentsMargins(0, 0, 0, 0)
         preprocessing_area_layout.setSpacing(0)
 
-        background_section = QWidget()
-        background_section.setStyleSheet("margin: 15px")
+        background_section = QWidget(objectName="PreprocessingBackgroundSection")
         background_layout = QVBoxLayout()
 
-        background_title = QLabel("Review removed background")
-        # background_title.setObjectName("")
-        background_title.setStyleSheet("font-size: 12px;")
+        background_title = QLabel("Review removed background", objectName="PreprocessingTitle")
 
         self.background_image = QLabel()
         self.processed_images = []
         self.annotated_images = []
 
         # Center and reduce spacing between background_image_info and background_image_next
-        self.background_image_info = QLabel(f"Image #1 of {len(self.processed_images)}")
-        self.background_image_info.setStyleSheet("font-size: 12px;")
+        self.background_image_info = QLabel(f"Image #1 of {len(self.processed_images)}", objectName="PreprocessingBackgroundImageInfo")
         self.background_image_info.setAlignment(Qt.AlignCenter)  # Center the text
 
         background_image_next = QPushButton("Next")
         background_image_next.clicked.connect(self.move_to_next)
-        background_image_next.setStyleSheet("background-color: #ededed")
         background_image_next.setFixedSize(120, 55)
 
         # Add a layout to group the info and button together
@@ -133,23 +118,18 @@ class PreprocessingScreen(QWidget):
 
         background_section.setLayout(background_layout)
 
-        graphical_interface_section = QWidget()
-        graphical_interface_section.setStyleSheet("margin: 15px")
+        graphical_interface_section = QWidget(objectName="PreprocessingGraphInterfaceSection")
         graphical_interface_layout = QVBoxLayout()
-        graphical_interface_title = QLabel("Graphical 3D interface of input image")
-        graphical_interface_title.setStyleSheet("font-size: 12px;")
+        graphical_interface_title = QLabel("Graphical 3D interface of input image", objectName="PreprocessingGraphicalInterface")
         
-        self.graphical_interface_image = QLabel()
-        self.graphical_interface_image.setStyleSheet("background-color: black")
+        self.graphical_interface_image = QLabel(objectName="PreprocessingGraphicalInterfaceImage")
         pixmap = QPixmap(f"{OUTPUT_PATH}/rgb_image_1.png")
         self.graphical_interface_image.setPixmap(pixmap)
         self.graphical_interface_image.setScaledContents(True)  # Allow the pixmap to scale with the label
         self.graphical_interface_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
         self.graphical_interface_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
 
-
         graphical_interface_fs = QPushButton("View fullscreen")
-        graphical_interface_fs.setStyleSheet("background-color: #ededed")
         graphical_interface_fs.clicked.connect(self.view_3d_interface)
 
         graphical_interface_fs.setFixedSize(150, 55)
@@ -169,25 +149,21 @@ class PreprocessingScreen(QWidget):
         
         # Set up the initial container
         directory_saving_layout = QVBoxLayout()
-        directory_saving_area = QWidget()
-        directory_saving_area.setStyleSheet("background-color: #d9d9d9;")
+        directory_saving_area = QWidget(objectName="PreprocessingDirectoryArea")
         directory_saving_area.setContentsMargins(15, 15, 15, 15)
 
         # Working within the initial container
         directory_text_layout = QVBoxLayout()
-        directory_instructions = QLabel("Select a directory to save the synthetic data.")
-        directory_instructions.setStyleSheet("font-size: 12px;")
+        directory_instructions = QLabel("Select a directory to save the synthetic data.", objectName="PreprocessingDirectoryInstructions")
 
         directory_text_layout.addWidget(directory_instructions)
         directory_saving_area.setLayout(directory_text_layout)
 
         # Create directory input box and browse button
-        self.directory_input = QLineEdit()
+        self.directory_input = QLineEdit(objectName="PreprocessingDirectoryInput")
         self.directory_input.setFixedHeight(25)  # Set the desired height
-        self.directory_input.setStyleSheet("background-color: #ededed; border: none;")
 
         browse_button = QPushButton("Browse")
-        browse_button.setStyleSheet("background-color: #ededed;")
         browse_button.setFixedHeight(25)  # Set the desired height
         browse_button.clicked.connect(self.select_directory)
 
@@ -201,8 +177,7 @@ class PreprocessingScreen(QWidget):
         directory_saving_layout.addWidget(directory_saving_area)
 
         navigation_layout = QHBoxLayout()
-        navigation_area = QWidget()
-        navigation_area.setStyleSheet("background-color: #d9d9d9;")
+        navigation_area = QWidget(objectName="PreprocessingNavigationArea")
 
         navigation_buttons_layout = QHBoxLayout()
 
@@ -211,14 +186,12 @@ class PreprocessingScreen(QWidget):
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         navigation_buttons_layout.addWidget(spacer)
 
-        back_button = QPushButton("Back")
+        back_button = QPushButton("Back", objectName="BackPageButton")
         back_button.setFixedSize(100, 30)
-        back_button.setStyleSheet("background-color: #ededed;")
         back_button.clicked.connect(self.go_to_back_page)
 
-        next_button = QPushButton("Next")
+        next_button = QPushButton("Next", objectName="NextPageButton")
         next_button.setFixedSize(100, 30)
-        next_button.setStyleSheet("background-color: #ededed;")
         next_button.clicked.connect(self.go_to_next_page)
 
         # Add the buttons to the layout with a small gap between them
@@ -246,8 +219,6 @@ class PreprocessingScreen(QWidget):
         self.setLayout(main_layout)
     
     def view_3d_interface(self):
-        # Open fullscreen 3D preview (placeholder)
-        # QMessageBox.information(self, "3D Interface", "Viewing 3D interface.")
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
         o3d.visualization.draw_geometries([self.accumulated_point_cloud, coordinate_frame])
 
@@ -256,12 +227,6 @@ class PreprocessingScreen(QWidget):
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
         if directory:
             self.directory_input.setText(directory)
-            # QMessageBox.information(self, "Directory Selected", f"Data will be saved to {directory}")
-    
-    def go_to_complete(self):
-        pass
-        # generate_3d_mesh()  # Simulate 3D mesh generation
-        # self.parent.setCurrentIndex(4)
 
     def move_to_next(self):
         # Increment the index and wrap around if it exceeds the number of processed images
@@ -293,10 +258,8 @@ class PreprocessingScreen(QWidget):
         # Convert RGB image to grayscale for ArUco detection
         gray_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY)
 
-        # Define the dictionary of ArUco markers
+        # Define Aruco Parameters
         dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
-
-        # Adjust DetectorParameters for more sensitivity
         parameters = aruco.DetectorParameters()
         parameters.adaptiveThreshWinSizeMax = 75  # Increase max value for better handling of varying light
         parameters.useAruco3Detection = True
@@ -327,30 +290,16 @@ class PreprocessingScreen(QWidget):
 
         # Use rembg to remove the background
         result_image = remove(pil_image)
-
-        # Convert the result back to an OpenCV format (numpy array)
         result_np = np.array(result_image)
-
-        # Extract the alpha channel (background removed areas will be transparent)
-        object_mask = result_np[:, :, 3]  # Alpha channel is the fourth channel
-
-        # Invert the dilated ArUco mask so that the area around the markers is excluded from the object
-        inverted_dilated_aruco_mask = cv2.bitwise_not(dilated_aruco_mask)
+        object_mask = result_np[:, :, 3]
 
         # Apply the inverted dilated mask to the object mask to exclude the markers and their surroundings
+        inverted_dilated_aruco_mask = cv2.bitwise_not(dilated_aruco_mask)
         refined_object_mask = cv2.bitwise_and(object_mask, inverted_dilated_aruco_mask)
 
         # Return the refined object mask, the aruco mask and the aruco information
         return refined_object_mask, aruco_mask, (corners, ids)
     
-
-    def get_files_starting_with(self, folder_path, prefix):
-        files = []
-        for file in os.listdir(folder_path):
-            if re.search(rf"{prefix}_[0-9]", file):
-            #file.startswith(prefix):
-                files.append(os.path.join(folder_path, file))
-        return files
     
     def apply_mask(self, rgb_image, mask):
         mask_3channel = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
@@ -390,7 +339,6 @@ class PreprocessingScreen(QWidget):
         bytes_per_line = channel * width
         qimage = QImage(img.data, width, height, bytes_per_line, QImage.Format_RGB888)
         return qimage
-    
 
     ############################################################
             # CREATE/PROCESS A POINT CLOUD
@@ -425,27 +373,23 @@ class PreprocessingScreen(QWidget):
         qpixmap = QPixmap.fromImage(qimage)
         
         return qpixmap
+    
 
     def remove_scraggly_bits(self, point_cloud, eps=0.003, min_points=10):
         labels = np.array(point_cloud.cluster_dbscan(eps=eps, min_points=min_points, print_progress=False))
         largest_cluster_label = np.bincount(labels[labels >= 0]).argmax()
         return point_cloud.select_by_index(np.where(labels == largest_cluster_label)[0])
 
-
     def depth_to_point_cloud(self, rgb_image, depth_image):
-        """Convert depth map and RGB/RGBA image to point cloud, ignoring pure black pixels in both RGB and depth images."""
+        # Get camera matrix information
         matrix = camera_matrix()
         h, w, channels = rgb_image.shape
         fx, fy = matrix[0, 0], matrix[1, 1]
         cx, cy = matrix[0, 2], matrix[1, 2]
 
-        # Check if the image has an alpha channel (RGBA)
-        has_alpha = (channels == 4)
-
         # Create lists of 3D points and corresponding colors
         points = []
         colors = []
-
         for v in range(h):
             for u in range(w):
                 Z = (depth_image[v, u] / 1000.0) # Convert depth to meters
@@ -455,7 +399,7 @@ class PreprocessingScreen(QWidget):
                     continue
 
                 # Skip pixels that are transparent if alpha is present
-                if has_alpha and rgb_image[v, u, 3] == 0:
+                if (channels == 4) and rgb_image[v, u, 3] == 0:
                     continue
 
                 # Skip pixels that are pure black in the RGB image
@@ -543,7 +487,8 @@ class PreprocessingScreen(QWidget):
             search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.05, max_nn=30)  # Adjust radius and max_nn as needed
         )
 
-        return accumulated_point_cloud 
+        return accumulated_point_cloud
+    
 
     ############################################################
             # OVERARCHING PAGE CONTROL

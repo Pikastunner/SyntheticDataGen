@@ -2,36 +2,86 @@ QWidget#GreenHalf {
     background-color: #84bf3b;
 }
 
-QLabel#Label1 {
-    font-weight: bold;
+QLabel#Label1, 
+QLabel#Preprocessing_Title, 
+QWidget#PreprocessingLabel, 
+QLabel#FinScreenTitle {
     font-size: 18px;
+    font-weight: bold;
     margin: 15px;
 }
 
-QLabel#Label2, QLabel#Label3 {
-    margin-left: 15px;
-    margin-right: 15px;
-    margin-top: 10px;
-    margin-bottom: 10px;
+QLabel#Label2, 
+QLabel#FinScreenLocationText, 
+QLabel#FinScreenDataCaption {
+    font-size: 12px;
+    margin: 10px 30px 10px 15px;
+}
+
+QLabel#FinImageInfo, 
+QLabel#PreprocessingTitle, 
+QLabel#PreprocessingBackgroundImageInfo,
+QLabel#PreprocessingGraphicalInterface,
+QLabel#PreprocessingDirectoryInstructions {
     font-size: 12px;
 }
 
-QLabel#Preprocessing_Title {
-    font-size: 18px;
+QLabel#PreprocessingGraphicalInterfaceImage {
+    background-color: black;
 }
 
-QWidget#BottomWidget {
+QWidget#BottomWidget,
+QWidget#TitleArea,
+QWidget#PreprocessingResultsArea,
+QWidget#FinScreenTextArea,
+QWidget#FinScreenGenDataArea,
+QWidget#FinScreenLargeImageArea,
+QWidget#FinScreenNavigationRegion,
+QWidget#FinSmallImageArea,
+QWidget#FinSmallImageRegion,
+QWidget#PreprocessingTitleArea,
+QWidget#PreprocessingDirectoryArea,
+QWidget#PreprocessingNavigationArea {
     background-color: #d9d9d9;
 }
 
-QWidget#TitleArea {
-    background-color: #d9d9d9;
+QWidget#PreprocessingBackgroundSection, 
+QWidget#PreprocessingGraphInterfaceSection {
+    margin: 15px;
 }
 
-QWidget#PreprocessingLabel {
-    font-size: 18px; margin: 15px;
+QLineEdit#PreprocessingDirectoryInput {
+    background-color: #ededed; 
+    border: none;
 }
 
-QWidget#Preprocessing_results_area {
-    background-color: #d9d9d9;
+QWidget#FinScreenLargeImageArea {
+    margin-left: 15px;
 }
+
+QWidget#FinSmallImageArea {
+    margin-right: 15px;
+}
+
+QPushButton {
+    background-color: #ededed;
+}
+
+QPushButton#BackButton {
+    margin-right: 5px;
+}
+
+QLabel#ImageFrame {
+    border: 2px solid black;
+}
+
+QLabel#PhotoReviewHeading {
+    font-size: 18pt; 
+    font-weight: bold;
+}
+
+
+
+
+
+

@@ -45,13 +45,11 @@ with rep.new_layer():
 
 
     model = rep.create.cube(semantics=[('class', 'cube')],  position=(0, 0 , 0) )
-
                                                     
     with rep.trigger.on_frame(max_execs=10):
         with model:
                 rep.modify.pose(
                     rotation=rep.distribution.uniform([-90]*3, [90]*3),
-                    # rotation=rep.distribution.uniform((0,-90, 0), (0, 90, 0)),
                 )
 
     # Initialize and attach writer
