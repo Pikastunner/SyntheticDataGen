@@ -10,7 +10,7 @@ import cv2
 import cv2.aruco as aruco
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout)
 
-from image_segment import BackgroundRemover
+from Old.image_segment import BackgroundRemover
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
