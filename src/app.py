@@ -71,8 +71,6 @@ class MainApp(QMainWindow):
 
     def toggle_light(self):
         # Placeholder for the settings functionality
-        print("Light button clicked")
-
         stylesheet = "src/Stylesheets/style_dark.qss" if self.light else "src/Stylesheets/style_light.qss"
         icon = "src/Icons/moon.svg" if self.light else "src/Icons/sun.svg"
         self.light = not self.light

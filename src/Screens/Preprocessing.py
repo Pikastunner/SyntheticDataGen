@@ -228,7 +228,7 @@ class PreprocessingScreen(QWidget):
         if ids is not None:
             corners, ids, _, recovered = detector.refineDetectedMarkers(gray_image, board=aruco_board(), detectedCorners=corners, detectedIds=ids, rejectedCorners=rejected,cameraMatrix=camera_matrix(),distCoeffs=dist_coeffs())
             print(f"{len(ids)} aruco markers found")
-        if ids is None:
+        else:
             return None, None, (None, None)
 
         # Create a mask for detected ArUco markers

@@ -5,3 +5,4 @@ test.py
 __pycache__/
 _output/
 output_scene/
+src/__pycache__
