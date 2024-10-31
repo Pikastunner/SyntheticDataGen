@@ -7,6 +7,8 @@ from time import sleep
 
 OUTPUT_PATH = "input_images"
 
+RESOLUTION = (640, 480)
+
 class CameraWorker(QThread):
     frameCaptured = pyqtSignal(np.ndarray, np.ndarray)  # Signal to emit captured frames
     photoSaved = pyqtSignal(str, str)       # Signal to emit photo file paths when saved
@@ -117,7 +119,7 @@ def create_image_id():
     
 # Function to check if camera is connected
 def is_camera_connected():
-    return True
+   # return True
     try:
         # Create a context object to manage devices
         context = rs.context()

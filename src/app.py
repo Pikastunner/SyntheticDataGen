@@ -37,14 +37,14 @@ class MainApp(QMainWindow):
         self.preview_screen = PreviewScreen(self.central_widget)
         self.captured_photoReview_screen = CapturedPhotoReviewScreen(self.central_widget)
         self.preprocessingScreen = PreprocessingScreen(self.central_widget)
-        # self.finishing_screen = FinishingScreen(self.central_widget)
+        self.finishing_screen = FinishingScreen(self.central_widget)
 
         # Add screens to the stacked widget
         self.central_widget.addWidget(self.welcome_screen)
         self.central_widget.addWidget(self.preview_screen)
         self.central_widget.addWidget(self.captured_photoReview_screen)
         self.central_widget.addWidget(self.preprocessingScreen)
-        # self.central_widget.addWidget(self.finishing_screen)
+        self.central_widget.addWidget(self.finishing_screen)
         
         self.central_widget.setCurrentIndex(0)  # Start with Welcome Screen
 

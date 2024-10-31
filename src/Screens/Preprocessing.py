@@ -310,6 +310,8 @@ class PreprocessingScreen(QWidget):
         if ids is not None:
             corners, ids, _, recovered = detector.refineDetectedMarkers(gray_image, board=aruco_board(), detectedCorners=corners, detectedIds=ids, rejectedCorners=rejected,cameraMatrix=camera_matrix(),distCoeffs=dist_coeffs())
             print(f"{len(ids)} aruco markers found")
+        else:
+            return None, None, (None, None)
 
         # Create a mask for detected ArUco markers
         aruco_mask = np.zeros(rgb_image.shape[:2], dtype=np.uint8)
@@ -376,8 +378,11 @@ class PreprocessingScreen(QWidget):
         for i in range(min(len(rgb_images), len(depth_images))):
             # Extract object and extract aruco information
             mask, _, aruco_data = self.create_mask_with_rembg(rgb_images[i])
-            if len(aruco_data[1]) < 2:
-                continue
+            if aruco_data == (None, None):
+                    continue
+            else:
+                if len(aruco_data[1]) < 2:
+                    continue
 
             object_extracted = self.apply_mask(rgb_images[i], mask)
             processed_images.append(object_extracted)
