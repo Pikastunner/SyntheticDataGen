@@ -37,11 +37,12 @@ class MainApp(QMainWindow):
         self.stacked_widget.addWidget(PreviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(PreprocessingScreen(self.stacked_widget))
+        self.stacked_widget.addWidget(FinishingScreen(self.stacked_widget))
         
         self.stacked_widget.setCurrentIndex(0)
 
         # Add settings button to each of the Screens
-        self.light = True
+        self.light = False
 
         self.create_light_button()
 
@@ -63,23 +64,24 @@ class MainApp(QMainWindow):
         # Connect the button to open settings
         self.light_switch.clicked.connect(self.toggle_light)
 
+        self.set_light(True)
+    
     def update_light_button_position(self, event):
         """Update settings button position on window resize."""
         self.light_switch.move(self.width() - self.light_switch.width() - 10, 10)
         super().resizeEvent(event)
 
+    def set_light(self, light):
+        stylesheet = "src/Stylesheets/style_dark.qss" if light else "src/Stylesheets/style_light.qss"
+        icon = "src/Icons/moon.svg" if light else "src/Icons/sun.svg"
+        with open(stylesheet, "r") as fh:
+            app.setStyleSheet(fh.read()) 
+        self.light_switch.setIcon(QIcon(icon))
 
     def toggle_light(self):
         # Placeholder for the settings functionality
-        stylesheet = "src/Stylesheets/style_dark.qss" if self.light else "src/Stylesheets/style_light.qss"
-        icon = "src/Icons/moon.svg" if self.light else "src/Icons/sun.svg"
+        self.set_light(self.light)
         self.light = not self.light
-
-        with open(stylesheet, "r") as fh:
-            app.setStyleSheet(fh.read())
-            
-        self.light_switch.setIcon(QIcon(icon))
-
 
 
 if __name__ == '__main__':

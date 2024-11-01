@@ -19,6 +19,8 @@ OUTPUT_PATH = "input_images"
 
 import concurrent.futures
 import time
+from scipy.spatial import Delaunay  # Ensure this import is included
+
 
 
 # Preprocessing Page
@@ -39,8 +41,13 @@ class PreprocessingScreen(QWidget):
 
             if len(ids) < 2:
                 continue
-
             objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
+
+            if objpoints is None or imgpoints is None or not objpoints.any() or not imgpoints.any():
+                continue
+            if len(objpoints) < 4 or len(imgpoints) < 4:
+                continue
+
             _, rvec, tvec = cv2.solvePnP(objectPoints=objpoints, imagePoints=imgpoints, cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), flags=cv2.SOLVEPNP_ITERATIVE)
             self.annotated_images.append(cv2.drawFrameAxes(img.copy(), cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), rvec=rvec, tvec=tvec , thickness=3, length=0.02))
             
@@ -53,11 +60,67 @@ class PreprocessingScreen(QWidget):
         self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
         self.background_image_info.setText(f"Image #1 of {len(self.processed_images)}")
 
+        ## GET POINT CLOUD
         self.accumulated_point_cloud = self.generate_point_cloud()
+
+        self.triangle_mesh = PreprocessingScreen.generate_mesh_from_pcl(self.accumulated_point_cloud)
         self.graphical_interface_image.setPixmap(self.point_cloud_to_image(self.accumulated_point_cloud))
 
-        self.triangle_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(self.accumulated_point_cloud, depth=8)[0]
+    ############################################################
+            # CREATE/PROCESS A MESH
+    ############################################################
 
+    @staticmethod
+    def generate_mesh_from_pcl(pcl, alpha=0.1):
+        """
+        Generate a mesh from a point cloud using alpha shapes.
+
+        Parameters:
+        pcl (o3d.geometry.PointCloud or numpy.ndarray): A Nx3 array of points (and optionally colors).
+        alpha (float): Alpha parameter for the alpha shape algorithm.
+
+        Returns:
+        open3d.geometry.TriangleMesh: The reconstructed mesh.
+        """
+        pcl_np = np.asarray(pcl.points)
+        colors_np = np.asarray(pcl.colors)  # Get colors as well
+       
+        tri = Delaunay(pcl_np[:, :2])  # Use only x and y for triangulation
+
+        # Calculate the circumradius of each triangle
+        triangles = pcl_np[tri.simplices]
+        a = np.linalg.norm(triangles[:, 1] - triangles[:, 0], axis=1)
+        b = np.linalg.norm(triangles[:, 2] - triangles[:, 1], axis=1)
+        c = np.linalg.norm(triangles[:, 2] - triangles[:, 0], axis=1)
+        s = (a + b + c) / 2  # Semi-perimeter
+        area = np.sqrt(s * (s - a) * (s - b) * (s - c))  # Area of the triangle
+        circumradius = (a * b * c) / (4 * area + 1e-10)  # Avoid division by zero
+
+        # Filter triangles based on the circumradius and alpha value
+        mask = circumradius < (1 / alpha)
+        filtered_triangles = tri.simplices[mask]
+
+        # Create a mesh 
+        mesh = o3d.geometry.TriangleMesh()
+        mesh.vertices = o3d.utility.Vector3dVector(pcl_np)
+        mesh.triangles = o3d.utility.Vector3iVector(filtered_triangles)
+
+        # Ensure that only the vertices in the filtered triangles are colored
+        vertex_colors = np.zeros_like(pcl_np)  # Initialize an array for vertex colors
+        vertex_colors[:len(colors_np)] = colors_np  # Assign colors from the point cloud
+
+        # Assign colors to the vertices of the filtered triangles
+        mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
+
+        # point_cloud = mesh.sample_points_poisson_disk(number_of_points=10000)
+        # mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(point_cloud)[0]
+
+        mesh.compute_vertex_normals()
+
+        return mesh
+
+
+    
 
     ############################################################
             # GUI BEHAVIOUR/DISPLAY
@@ -173,8 +236,10 @@ class PreprocessingScreen(QWidget):
 
     
     def view_3d_interface(self):
+        # coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+        # o3d.visualization.draw_geometries([self.accumulated_point_cloud, coordinate_frame])
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        o3d.visualization.draw_geometries([self.accumulated_point_cloud, coordinate_frame])
+        o3d.visualization.draw_geometries([self.triangle_mesh, coordinate_frame])
 
     
     def select_directory(self):
@@ -216,8 +281,9 @@ class PreprocessingScreen(QWidget):
         # Define Aruco Parameters
         dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
         parameters = aruco.DetectorParameters()
-        parameters.adaptiveThreshWinSizeMax = 75  # Increase max value for better handling of varying light
-        parameters.useAruco3Detection = True
+        parameters.adaptiveThreshWinSizeMax = 80  # Increase max value for better handling of varying light
+        parameters.errorCorrectionRate = 1
+        # parameters.useAruco3Detection = True
         parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
         parameters.cornerRefinementMaxIterations = 40
 
@@ -228,6 +294,7 @@ class PreprocessingScreen(QWidget):
         if ids is not None:
             corners, ids, _, recovered = detector.refineDetectedMarkers(gray_image, board=aruco_board(), detectedCorners=corners, detectedIds=ids, rejectedCorners=rejected,cameraMatrix=camera_matrix(),distCoeffs=dist_coeffs())
             print(f"{len(ids)} aruco markers found")
+            print(ids)
         else:
             return None, None, (None, None)
 
@@ -360,7 +427,7 @@ class PreprocessingScreen(QWidget):
     def depth_to_point_cloud(rgb_image, depth_image):
         # Get camera matrix information
         start = time.time()
-        matrix = camera_matrix()
+        matrix = camera_matrix_rgb() # TODO find out why for whatever reason this works bests for point cloud estimation
         
         h, w, channels = rgb_image.shape
         fx, fy = matrix[0, 0], matrix[1, 1]
@@ -401,14 +468,18 @@ class PreprocessingScreen(QWidget):
         # Initialize accumulated point cloud and reuse constants
         accumulated_point_cloud = o3d.geometry.PointCloud()
         dist_coeffs_cached = dist_coeffs()
-        
+
         for i, (rgb_image, depth_image, aruco_data) in enumerate(zip(self.processed_images, self.depth_images, self.aruco_datas)):
             ids, corners = aruco_data[1], aruco_data[0]
 
+            ## CHECK FOR UNUSABLE DATA
             if ids is None or len(ids) < 2: # Dont bother if there arent enough markers
                 continue
-
             objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
+            if objpoints is None or imgpoints is None or not objpoints.any() or not imgpoints.any():
+                continue
+            if len(objpoints) < 4 or len(imgpoints) < 4:
+                continue
            
             _, rvec, tvec = cv2.solvePnP(
                 objectPoints=objpoints,
@@ -439,25 +510,26 @@ class PreprocessingScreen(QWidget):
                 accumulated_point_cloud = point_cloud
             else:
                 # TODO disabling ICP algorithm for now
-                # # Apply ICP to align the current point cloud with the accumulated point cloud
-                # icp_result = o3d.pipelines.registration.registration_icp(
-                #     point_cloud, 
-                #     accumulated_point_cloud, 
-                #     max_correspondence_distance=0.02,  # Adjust based on scale
-                #     estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint()
-                # )
+                # Apply ICP to align the current point cloud with the accumulated point cloud
+                icp_result = o3d.pipelines.registration.registration_icp(
+                    point_cloud, 
+                    accumulated_point_cloud, 
+                    max_correspondence_distance=0.0013,  # Adjust based on scale
+                    estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint()
+                )
 
-                # # Transform the current point cloud using the ICP result
-                # point_cloud.transform(icp_result.transformation)
-                accumulated_point_cloud += point_cloud                
-
-        # # Visualize the accumulated point cloud
-        accumulated_point_cloud.estimate_normals(
-            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.05, max_nn=30)  # Adjust radius and max_nn as needed
-        )
+                # Transform the current point cloud using the ICP result
+                point_cloud.transform(icp_result.transformation)
+                accumulated_point_cloud += point_cloud         
+        
+        # Remove any outliers that arent connected to largest point cloud
+        accumulated_point_cloud = PreprocessingScreen.remove_scraggly_bits(accumulated_point_cloud, min_points=4)       
 
         return accumulated_point_cloud
     
+
+
+
 
     ############################################################
             # OVERARCHING PAGE CONTROL
