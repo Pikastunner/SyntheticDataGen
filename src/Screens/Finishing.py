@@ -7,14 +7,14 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt
 import re
 
-from pxr import Usd, UsdGeom, Vt
+from pxr import Usd, UsdGeom, Vt, Gf
 import numpy as np
 
 
 # Preprocessing Page
 class FinishingScreen(QWidget):
 
-    
+    # This function is called when FinishingScreen made visible    
     def update_variables(self, triangle_mesh, output_path):
         self.mesh = triangle_mesh
         self.output_path = output_path
@@ -36,43 +36,42 @@ class FinishingScreen(QWidget):
         stage = Usd.Stage.CreateNew(usd_file_path)
 
         # Create a new mesh in the stage
-        mesh_prim = UsdGeom.Mesh.Define(stage, '/MyMesh')
+        mesh_prim = UsdGeom.Mesh.Define(stage, '/GeneratedMesh')
 
         # Get vertices and triangles from the Open3D mesh
-        vertices = np.asarray(open3d_mesh.vertices)  # Convert to numpy array
-        triangles = np.asarray(open3d_mesh.triangles)  # Convert to numpy array
+        vertices = np.asarray(open3d_mesh.vertices)
+        triangles = np.asarray(open3d_mesh.triangles)
 
         # Set vertex points in the USD mesh
-        mesh_prim.GetPointsAttr().Set(Vt.Vec3fArray(vertices.tolist()))  # Ensure vertices are in the right format
+        mesh_prim.GetPointsAttr().Set(Vt.Vec3fArray(vertices.tolist()))
 
         # Flatten the triangle indices and set face vertex indices
         face_vertex_indices = triangles.flatten().tolist()
-        mesh_prim.GetFaceVertexIndicesAttr().Set(Vt.IntArray(face_vertex_indices))  # Set as IntArray
+        mesh_prim.GetFaceVertexIndicesAttr().Set(Vt.IntArray(face_vertex_indices))
 
-        # Optionally set face counts if needed
-        face_counts = [3] * len(triangles)  # Assuming all faces are triangles
+        # Set face counts assuming all faces are triangles
+        face_counts = [3] * len(triangles)
         mesh_prim.GetFaceVertexCountsAttr().Set(Vt.IntArray(face_counts))
+
+        # Check if the Open3D mesh has vertex colors
+        if open3d_mesh.has_vertex_colors():
+            vertex_colors = np.asarray(open3d_mesh.vertex_colors)
+            # Convert vertex colors to a format compatible with USD
+            color_values = [Gf.Vec3f(*color) for color in vertex_colors]
+
+            # Set the display color attribute with vertex colors
+            color_attr = mesh_prim.GetDisplayColorAttr()
+            color_attr.Set(Vt.Vec3fArray(color_values))
 
         # Save the stage
         stage.GetRootLayer().Save()
 
+
+
     @staticmethod
     def generate_images(obj_usd_location=None):
-        import subprocess
-        
-        # Path to the script you want to run
-        script_path = './src/Screens/Generator.py'
-
-        # Running the script and waiting for it to finish
-        result = subprocess.run(['python', script_path], capture_output=True, text=True)
-
-        # You can check the return code to see if it was successful
-        if result.returncode == 0:
-            print("Script finished successfully.")
-            print("Output:", result.stdout)
-        else:
-            print("Script failed with return code:", result.returncode)
-            print("Error:", result.stderr)
+        import subprocess   # Have to run as seperate python thingo because it causes errors
+        subprocess.run(['python', './src/Screens/Generator.py'], capture_output=True, text=True)
 
 
     def __init__(self, parent):
@@ -125,7 +124,6 @@ class FinishingScreen(QWidget):
 
         self.large_image_region = QLabel()
         self.processed_images = self.load_output_images("./_output/")
-        print(len(self.processed_images))
         self.image_index = 0
 
         available_width = int(self.large_image_region.width() * 0.80)
@@ -232,16 +230,14 @@ class FinishingScreen(QWidget):
     def load_output_images(self, output_path=None):
         folder_path = output_path if output_path else "./_output"
         rgb_image_files = self.get_files_starting_with(folder_path, 'rgb')
-        print(rgb_image_files)
         if rgb_image_files:
             rgb_images = [cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB) for filename in rgb_image_files]
             return rgb_images
     
     def get_files_starting_with(self, folder_path, prefix):
         files = []
-        print(os.listdir(folder_path))
         for file in os.listdir(folder_path):
-            if re.search(rf"{prefix}_[0-9]+\.png", file):
+            if re.search(rf"{prefix}_[0-9]+", file):
                 files.append(os.path.join(folder_path, file))
         return files
 

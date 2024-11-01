@@ -1,3 +1,9 @@
+'''
+This code is ran as a subprocess and called from the main process (the gui app). It doesn't play well with PyQt :/
+'''
+
+
+# This needs to be imported first before anything else 
 from isaacsim import SimulationApp
 import os
 
@@ -11,15 +17,13 @@ config = {
     "open_usd": os.path.abspath("./_output/mesh_usd.usda")
     }
 
-app = SimulationApp(config)  # Change to True if you want headless mode
+app = SimulationApp(config)
 
 
-import carb
-import os
-import random
+# Everything below here is where isaacsim code is run
+
+
 import omni.replicator.core as rep
-from pathlib import Path
-import time
 
 # Parameters #
 OUTPUT_DIR = os.path.abspath("./_output")
@@ -27,7 +31,6 @@ MODEL_PATH = os.path.abspath("./_output/mesh_usd.usda")
 
 
 # Layer's Definition #
-
 with rep.new_layer():
     camera = rep.create.camera(
             position=(1,1,1),
@@ -41,15 +44,14 @@ with rep.new_layer():
 
     )
 
-    render_product = rep.create.render_product(camera, (600, 600))
-                       
-    with rep.trigger.on_frame(max_execs=10):
-        objects = rep.get.prim_at_path(path="/MyMesh")
+    render_product = rep.create.render_product(camera, (600, 600))            
+    with rep.trigger.on_frame(max_execs=10):    # Controls the amount of executions (images) that are created
+        objects = rep.get.prim_at_path(path="/GeneratedMesh")   # do not change or i will touch yo[u ]
         with objects:
             rep.modify.pose(
                 position=(0, 0, 0),
                 rotation=rep.distribution.uniform([-90]*3, [90]*3),
-                scale=rep.distribution.uniform(0.1, 10),
+                scale=rep.distribution.uniform(1, 10),
             )
 
     # Initialize and attach writer

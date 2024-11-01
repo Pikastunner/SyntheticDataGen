@@ -62,61 +62,7 @@ class PreprocessingScreen(QWidget):
         self.accumulated_point_cloud = self.generate_point_cloud()
 
         self.triangle_mesh = PreprocessingScreen.generate_mesh_from_pcl(self.accumulated_point_cloud)
-        self.graphical_interface_image.setPixmap(self.point_cloud_to_image(self.accumulated_point_cloud))
-
-    ############################################################
-            # CREATE/PROCESS A MESH
-    ############################################################
-
-    @staticmethod
-    def generate_mesh_from_pcl(pcl, alpha=0.1):
-        """
-        Generate a mesh from a point cloud using alpha shapes.
-
-        Parameters:
-        pcl (o3d.geometry.PointCloud or numpy.ndarray): A Nx3 array of points (and optionally colors).
-        alpha (float): Alpha parameter for the alpha shape algorithm.
-
-        Returns:
-        open3d.geometry.TriangleMesh: The reconstructed mesh.
-        """
-        pcl_np = np.asarray(pcl.points)
-        colors_np = np.asarray(pcl.colors)  # Get colors as well
-       
-        tri = Delaunay(pcl_np[:, :2])  # Use only x and y for triangulation
-
-        # Calculate the circumradius of each triangle
-        triangles = pcl_np[tri.simplices]
-        a = np.linalg.norm(triangles[:, 1] - triangles[:, 0], axis=1)
-        b = np.linalg.norm(triangles[:, 2] - triangles[:, 1], axis=1)
-        c = np.linalg.norm(triangles[:, 2] - triangles[:, 0], axis=1)
-        s = (a + b + c) / 2  # Semi-perimeter
-        area = np.sqrt(s * (s - a) * (s - b) * (s - c))  # Area of the triangle
-        circumradius = (a * b * c) / (4 * area + 1e-10)  # Avoid division by zero
-
-        # Filter triangles based on the circumradius and alpha value
-        mask = circumradius < (1 / alpha)
-        filtered_triangles = tri.simplices[mask]
-
-        # Create a mesh 
-        mesh = o3d.geometry.TriangleMesh()
-        mesh.vertices = o3d.utility.Vector3dVector(pcl_np)
-        mesh.triangles = o3d.utility.Vector3iVector(filtered_triangles)
-
-        # Ensure that only the vertices in the filtered triangles are colored
-        vertex_colors = np.zeros_like(pcl_np)  # Initialize an array for vertex colors
-        vertex_colors[:len(colors_np)] = colors_np  # Assign colors from the point cloud
-
-        # Assign colors to the vertices of the filtered triangles
-        mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
-
-        # point_cloud = mesh.sample_points_poisson_disk(number_of_points=10000)
-        # mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(point_cloud)[0]
-
-        mesh.compute_vertex_normals()
-
-        return mesh
-
+        self.graphical_interface_image.setPixmap(PreprocessingScreen.point_cloud_to_image(self.accumulated_point_cloud))
 
     
 
@@ -265,7 +211,7 @@ class PreprocessingScreen(QWidget):
 
 
     ############################################################
-            # LOAD/PROCESS DEPTH/RGB/ARUOCO
+            # STEP 1: LOAD/PROCESS DEPTH/RGB/ARUOCO IMAGES
     ############################################################
 
     # Function to create a mask using rembg
@@ -377,84 +323,8 @@ class PreprocessingScreen(QWidget):
         return qimage
 
     ############################################################
-            # CREATE/PROCESS A POINT CLOUD
+            # STEP 2: CREATE A POINT CLOUD FROM IMAGES
     ############################################################
-
-    def point_cloud_to_image(self, point_cloud, image_size=(500, 500)):
-        # Convert point cloud data to numpy arrays
-        points = np.asarray(point_cloud.points)
-        colors = np.asarray(point_cloud.colors) * 255  # Scale colors to 0-255 range if they are normalized
-
-        # Create a blank image
-        img = np.zeros((image_size[1], image_size[0], 3), dtype=np.uint8)
-        
-        # Extract x and y coordinates (z is ignored for 2D projection)
-        x_coords = points[:, 1]
-        y_coords = points[:, 2]
-
-        # Normalize x and y coordinates to fit within image dimensions
-        x_normalized = ((x_coords - x_coords.min()) / (x_coords.max() - x_coords.min()) * (image_size[0] - 1)).astype(int)
-        y_normalized = ((y_coords - y_coords.min()) / (y_coords.max() - y_coords.min()) * (image_size[1] - 1)).astype(int)
-        
-        # Populate the image with colored points
-        for x, y, color in zip(x_normalized, y_normalized, colors):
-            img[y, x] = color.astype(np.uint8)  # Set each point color
-
-
-        # Apply Gaussian blur to the image
-        img = cv2.GaussianBlur(img, (15, 15), 0)  # Adjust kernel size as needed
-        
-        # Convert the image to a QImage
-        height, width, channel = img.shape
-        bytes_per_line = 3 * width
-        qimage = QImage(img.data, width, height, bytes_per_line, QImage.Format_RGB888)
-
-        return QPixmap.fromImage(qimage)
-    
-    @staticmethod
-    def remove_scraggly_bits(point_cloud, eps=0.003, min_points=10):
-        labels = np.array(point_cloud.cluster_dbscan(eps=eps, min_points=min_points, print_progress=False))
-        largest_cluster_label = np.bincount(labels[labels >= 0]).argmax()
-        
-        return point_cloud.select_by_index(np.where(labels == largest_cluster_label)[0])
-
-
-    @staticmethod
-    def depth_to_point_cloud(rgb_image, depth_image):
-        # Get camera matrix information
-        start = time.time()
-        matrix = camera_matrix_rgb() # TODO find out why for whatever reason this works bests for point cloud estimation
-        
-        h, w, channels = rgb_image.shape
-        fx, fy = matrix[0, 0], matrix[1, 1]
-        cx, cy = matrix[0, 2], matrix[1, 2]
-
-        # Prepare the meshgrid of pixel coordinates
-        u, v = np.meshgrid(np.arange(w), np.arange(h))
-        
-        # Get depth values and convert to meters
-        Z = depth_image / 1000.0  # Convert depth to meters
-
-        # Create masks for valid points
-        valid_mask = (Z > 0) & (channels == 3) & (rgb_image[:, :, :3].any(axis=-1))
-
-        # Compute the 3D points using valid masks
-        X = ((u[valid_mask] - cx) * Z[valid_mask] / fx)
-        Y = ((v[valid_mask] - cy) * Z[valid_mask] / fy)
-
-        # Create point cloud data
-        points = np.vstack((X, Y, Z[valid_mask])).T
-        colors = rgb_image[valid_mask, :3] / 255.0  # Normalize RGB
-
-        # Create Open3D point cloud
-        point_cloud = o3d.geometry.PointCloud()
-        point_cloud.points = o3d.utility.Vector3dVector(points)
-        point_cloud.colors = o3d.utility.Vector3dVector(colors)
-
-        print(f"Time taken to generate point cloud: {time.time() - start:.2f} seconds")
-
-        return point_cloud
-
 
     def generate_point_cloud(self):
         if not self.processed_images or not self.depth_images or not self.aruco_datas:
@@ -523,8 +393,118 @@ class PreprocessingScreen(QWidget):
 
         return accumulated_point_cloud
     
+    @staticmethod
+    def remove_scraggly_bits(point_cloud, eps=0.003, min_points=10):
+        labels = np.array(point_cloud.cluster_dbscan(eps=eps, min_points=min_points, print_progress=False))
+        largest_cluster_label = np.bincount(labels[labels >= 0]).argmax()
+        
+        return point_cloud.select_by_index(np.where(labels == largest_cluster_label)[0])
 
 
+    @staticmethod
+    def depth_to_point_cloud(rgb_image, depth_image):
+        # Get camera matrix information
+        start = time.time()
+        matrix = camera_matrix_rgb() # TODO find out why for whatever reason this works bests for point cloud estimation
+        
+        h, w, channels = rgb_image.shape
+        fx, fy = matrix[0, 0], matrix[1, 1]
+        cx, cy = matrix[0, 2], matrix[1, 2]
+
+        # Prepare the meshgrid of pixel coordinates
+        u, v = np.meshgrid(np.arange(w), np.arange(h))
+        
+        # Get depth values and convert to meters
+        Z = depth_image / 1000.0  # Convert depth to meters
+
+        # Create masks for valid points
+        valid_mask = (Z > 0) & (channels == 3) & (rgb_image[:, :, :3].any(axis=-1))
+
+        # Compute the 3D points using valid masks
+        X = ((u[valid_mask] - cx) * Z[valid_mask] / fx)
+        Y = ((v[valid_mask] - cy) * Z[valid_mask] / fy)
+
+        # Create point cloud data
+        points = np.vstack((X, Y, Z[valid_mask])).T
+        colors = rgb_image[valid_mask, :3] / 255.0  # Normalize RGB
+
+        # Create Open3D point cloud
+        point_cloud = o3d.geometry.PointCloud()
+        point_cloud.points = o3d.utility.Vector3dVector(points)
+        point_cloud.colors = o3d.utility.Vector3dVector(colors)
+
+        print(f"Time taken to generate point cloud: {time.time() - start:.2f} seconds")
+
+        return point_cloud
+    
+
+    @staticmethod
+    def point_cloud_to_image(point_cloud, image_size=(500, 500)):
+        # Convert point cloud data to numpy arrays
+        points = np.asarray(point_cloud.points)
+        colors = np.asarray(point_cloud.colors) * 255  # Scale colors to 0-255 range if they are normalized
+
+        # Create a blank image
+        img = np.zeros((image_size[1], image_size[0], 3), dtype=np.uint8)
+        
+        # Extract x and y coordinates (z is ignored for 2D projection)
+        x_coords = points[:, 1]
+        y_coords = points[:, 2]
+
+        # Normalize x and y coordinates to fit within image dimensions
+        x_normalized = ((x_coords - x_coords.min()) / (x_coords.max() - x_coords.min()) * (image_size[0] - 1)).astype(int)
+        y_normalized = ((y_coords - y_coords.min()) / (y_coords.max() - y_coords.min()) * (image_size[1] - 1)).astype(int)
+        
+        # Populate the image with colored points
+        for x, y, color in zip(x_normalized, y_normalized, colors):
+            img[y, x] = color.astype(np.uint8)  # Set each point color
+        
+        # Convert the image to a QImage
+        height, width, channel = img.shape
+        bytes_per_line = 3 * width
+        qimage = QImage(img.data, width, height, bytes_per_line, QImage.Format_RGB888)
+        return QPixmap.fromImage(qimage)
+
+    
+    ############################################################
+            # STEP 3: CREATE A MESH FROM POINT CLOUD
+    ############################################################
+
+    @staticmethod
+    def generate_mesh_from_pcl(pcl, alpha=0.1):
+        pcl_np = np.asarray(pcl.points)
+        colors_np = np.asarray(pcl.colors)  # Get colors as well
+       
+        tri = Delaunay(pcl_np[:, :2])  # Use only x and y for triangulation
+
+        # Calculate the circumradius of each triangle
+        triangles = pcl_np[tri.simplices]
+        a = np.linalg.norm(triangles[:, 1] - triangles[:, 0], axis=1)
+        b = np.linalg.norm(triangles[:, 2] - triangles[:, 1], axis=1)
+        c = np.linalg.norm(triangles[:, 2] - triangles[:, 0], axis=1)
+        s = (a + b + c) / 2  # Semi-perimeter
+        area = np.sqrt(s * (s - a) * (s - b) * (s - c))  # Area of the triangle
+        circumradius = (a * b * c) / (4 * area + 1e-10)  # Avoid division by zero
+
+        # Filter triangles based on the circumradius and alpha value
+        mask = circumradius < (1 / alpha)
+        filtered_triangles = tri.simplices[mask]
+
+        # Create a mesh 
+        mesh = o3d.geometry.TriangleMesh()
+        mesh.vertices = o3d.utility.Vector3dVector(pcl_np)
+        mesh.triangles = o3d.utility.Vector3iVector(filtered_triangles)
+
+        # Ensure that only the vertices in the filtered triangles are colored
+        vertex_colors = np.zeros_like(pcl_np)  # Initialize an array for vertex colors
+        vertex_colors[:len(colors_np)] = colors_np  # Assign colors from the point cloud
+
+        # Assign colors to the vertices of the filtered triangles
+        mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
+
+        mesh.compute_vertex_normals()
+
+        return mesh
 
 
     ############################################################

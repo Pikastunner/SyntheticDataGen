@@ -27,7 +27,6 @@ QLabel#FinScreenDataCaption {
 
 QLabel {
     color: #cccccc; /* Lighter gray text */
-
 }
 
 QLabel#PreprocessingGraphicalInterfaceImage {
