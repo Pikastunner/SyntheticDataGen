@@ -15,8 +15,6 @@ import concurrent.futures
 
 import open3d as o3d
 
-OUTPUT_PATH = "input_images"
-
 import concurrent.futures
 import time
 from scipy.spatial import Delaunay  # Ensure this import is included
@@ -172,8 +170,6 @@ class PreprocessingScreen(QWidget):
         graphical_interface_layout.addWidget(QLabel("Graphical 3D interface of input image", objectName="PreprocessingGraphicalInterface"), 10)
 
         self.graphical_interface_image = QLabel(objectName="PreprocessingGraphicalInterfaceImage")
-        pixmap = QPixmap(f"{OUTPUT_PATH}/rgb_image_1.png")
-        self.graphical_interface_image.setPixmap(pixmap)
         self.graphical_interface_image.setScaledContents(True)
         self.graphical_interface_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
@@ -565,5 +561,7 @@ class PreprocessingScreen(QWidget):
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 1)
+            next_screen = self.parent.widget(self.parent.currentIndex())
+            next_screen.update_variables(self.triangle_mesh, self.directory_input.text())
         else:
             print("Already on the last page")
