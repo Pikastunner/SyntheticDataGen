@@ -1,3 +1,5 @@
+import cv2
+
 # PreviewScreen class for the camera feed preview
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QLabel, QVBoxLayout,
@@ -47,6 +49,10 @@ class PreviewScreen(QMainWindow):
         self.saved_rgb_image_filenames = []
         self.saved_depth_image_filenames = []
 
+        # Aruco marker parameters
+        self.aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco_.DICT_6X6_250)
+        self.parameters = cv2.aruco.DetectorParameters_create()
+
     def start_camera_worker(self):
         if is_camera_connected():
             # Create CameraWorker thread
@@ -60,6 +66,15 @@ class PreviewScreen(QMainWindow):
 
     def update_image(self, rgb_frame, depth_frame):
         """Update the QLabel with the new frame"""
+
+        # Detect ArUco markers
+        gray_image = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2GRAY)
+        corners, ids, _ = cv2.aruco.detectMarkers(gray_image, self.aruco_dict, parameters=self.parameters)
+
+        # If markers are detected, draw them
+        if ids is not None:
+            rgb_frame = cv2.aruco.drawDetectedMarkers(rgb_frame, corners, ids)
+
         # Convert BGR to RGB
         rgb_image = rgb_frame
 
