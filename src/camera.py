@@ -29,8 +29,11 @@ class CameraWorker(QThread):
             while self.running:
                 try:
                     frames = self.pipeline.wait_for_frames(10000)  # 10-second timeout
-                    color_frame = frames.get_color_frame()
-                    depth_frame = frames.get_depth_frame()
+                    align_to = rs.stream.color  # Align depth to RGB
+                    align = rs.align(align_to)
+                    aligned_frames = align.process(frames)
+                    color_frame = aligned_frames.get_color_frame()
+                    depth_frame = aligned_frames.get_depth_frame()
                     if not color_frame or not depth_frame:
                         continue
                     
