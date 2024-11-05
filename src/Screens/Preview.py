@@ -96,7 +96,7 @@ class PreviewScreen(QMainWindow):
     def go_to_next_page(self):
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
-            self.parent.setCurrentIndex(current_index + 1)
+            self.parent.setCurrentIndex(current_index + 2)
             next_screen = self.parent.widget(self.parent.currentIndex())
             next_screen.update_variables()
 

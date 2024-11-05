@@ -8,6 +8,7 @@ from Screens.Finishing import FinishingScreen
 from Screens.CapturedPhotoReview import CapturedPhotoReviewScreen
 from Screens.Preview import PreviewScreen
 from Screens.Preprocessing import PreprocessingScreen
+from Screens.Upload import UploadScreen
 from Screens.Welcome import WelcomeScreen
 
 # Main Application
@@ -37,6 +38,7 @@ class MainApp(QMainWindow):
         self.stacked_widget.addWidget(WelcomeScreen(self.stacked_widget))
         self.stacked_widget.addWidget(OptionsScreen(self.stacked_widget))
         self.stacked_widget.addWidget(PreviewScreen(self.stacked_widget))
+        self.stacked_widget.addWidget(UploadScreen(self.stacked_widget))
         self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(PreprocessingScreen(self.stacked_widget))
         self.stacked_widget.addWidget(FinishingScreen(self.stacked_widget))

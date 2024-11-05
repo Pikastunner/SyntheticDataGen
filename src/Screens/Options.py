@@ -80,6 +80,11 @@ class OptionsScreen(QWidget):
     def go_to_next_page(self):
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
-            self.parent.setCurrentIndex(current_index + 1)
+            if self.load_radio.isChecked() == False:   
+              self.parent.setCurrentIndex(current_index + 1)
+              print("Capture")
+            else:
+              self.parent.setCurrentIndex(current_index + 2)
+              print("Load")
         else:
             print("Already on the last page")
