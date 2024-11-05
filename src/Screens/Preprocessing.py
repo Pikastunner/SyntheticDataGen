@@ -4,7 +4,7 @@ import numpy as np
 from PyQt5.QtWidgets import (QWidget, QLineEdit, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, 
                              QFileDialog, QMessageBox, QSizePolicy)
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 import cv2.aruco as aruco
 from rembg import remove
 from PIL import Image
@@ -15,16 +15,17 @@ import concurrent.futures
 
 import open3d as o3d
 
-OUTPUT_PATH = "input_images"
-
 import concurrent.futures
 import time
+
+from Screens.Constants import OUTPUT_PATH
 
 
 # Preprocessing Page
 class PreprocessingScreen(QWidget):
 
-    def update_variables(self, rgb_filenames, depth_filenames):
+    def update_variables(self, rgb_filenames, depth_filenames, load_bar: pyqtSignal):
+        self.load_bar = load_bar
         self.processed_images, self.depth_images, self.aruco_datas = self.process_images(rgb_filenames, depth_filenames)
         self.image_index = 0
 
@@ -43,8 +44,8 @@ class PreprocessingScreen(QWidget):
             objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
             _, rvec, tvec = cv2.solvePnP(objectPoints=objpoints, imagePoints=imgpoints, cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), flags=cv2.SOLVEPNP_ITERATIVE)
             self.annotated_images.append(cv2.drawFrameAxes(img.copy(), cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), rvec=rvec, tvec=tvec , thickness=3, length=0.02))
-            
-            
+            # self.load_bar.emit(int((i + 51) / 90 * 100))
+
         ## DISPLAY THE FIRST IMAGE
         qimage = self.numpy_to_qimage(self.annotated_images[self.image_index])
         self.background_image.setPixmap(QPixmap.fromImage(qimage))
@@ -52,11 +53,13 @@ class PreprocessingScreen(QWidget):
         self.background_image.setGeometry(self.rect())  # Make QLabel cover the whole widget
         self.background_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
         self.background_image_info.setText(f"Image #1 of {len(self.processed_images)}")
+        self.load_bar.emit(100)
 
-        self.accumulated_point_cloud = self.generate_point_cloud()
-        self.graphical_interface_image.setPixmap(self.point_cloud_to_image(self.accumulated_point_cloud))
+        # self.accumulated_point_cloud = self.generate_point_cloud()
+        print("Generate Point Cloud")
+        # self.graphical_interface_image.setPixmap(self.point_cloud_to_image(self.accumulated_point_cloud))
 
-        self.triangle_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(self.accumulated_point_cloud, depth=8)[0]
+        # self.triangle_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(self.accumulated_point_cloud, depth=8)[0]
 
 
     ############################################################
@@ -296,13 +299,15 @@ class PreprocessingScreen(QWidget):
         with concurrent.futures.ProcessPoolExecutor() as executor:
             futures = {executor.submit(self.process_image, rgb_images[i], depth_images[i]): i 
                        for i in range(min(len(rgb_images), len(depth_images)))}
-            
-            for future in concurrent.futures.as_completed(futures):
+            self.load_bar.emit(20)
+            for i, future in enumerate(concurrent.futures.as_completed(futures)):
                 result = future.result()
                 if result[0] is not None:
                     processed_images.append(result[0])
                     depth_returned.append(result[1])
                     aruco_returned.append(result[2])
+                
+                self.load_bar.emit(int((i + 21) / 80 * 100))
 
         return processed_images, depth_returned, aruco_returned
 

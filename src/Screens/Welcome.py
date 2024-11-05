@@ -84,7 +84,8 @@ class WelcomeScreen(QWidget):
         self.setLayout(main_layout)
     
     def check_camera(self):
-        if is_camera_connected():
+        if True:
+        # if is_camera_connected():
             self.go_to_next_page()
             #self.parent.setCurrentIndex(1)  # Go to Camera Preview screen
             preview_screen = self.parent.widget(1)  # Index 1 is the PreviewScreen

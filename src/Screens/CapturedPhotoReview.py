@@ -9,20 +9,21 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 
-OUTPUT_PATH = "input_images/"
+from Screens.Loader import LoadingScreen, LoadingWorker
+from Screens.Constants import OUTPUT_DIR
 
 # Component 5
 class CapturedPhotoReviewScreen(QWidget):
     def update_variables(self):
         sortKey = lambda s: int(re.match(r".*_(\d+).png", s).group(1))
         isRGB = lambda p: p.startswith("rgb_ima")
-        fnames = sorted(filter(isRGB, os.listdir(OUTPUT_PATH)), key=sortKey)
-        self.img_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
+        fnames = sorted(filter(isRGB, os.listdir(OUTPUT_DIR)), key=sortKey)
+        self.img_paths = [f"{OUTPUT_DIR}/{f}" for f in fnames]
         self.main_img_path = self.img_paths[0] if self.img_paths else None
 
         isDepth = lambda p: p.startswith("depth_ima") and re.match(".*colormap.*", p) is None
-        fnames = sorted(filter(isDepth, os.listdir(OUTPUT_PATH)), key=sortKey)
-        self.depth_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
+        fnames = sorted(filter(isDepth, os.listdir(OUTPUT_DIR)), key=sortKey)
+        self.depth_paths = [f"{OUTPUT_DIR}/{f}" for f in fnames]
 
         print("Number of depth images:", len(fnames))
         self.display_images()
@@ -34,8 +35,8 @@ class CapturedPhotoReviewScreen(QWidget):
 
         sortKey = lambda s: int(re.match(r".*_(\d+).png", s).group(1))
         isRGB = lambda p: p.startswith("rgb_ima")
-        fnames = sorted(filter(isRGB, os.listdir(OUTPUT_PATH)), key=sortKey)
-        self.img_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
+        fnames = sorted(filter(isRGB, os.listdir(OUTPUT_DIR)), key=sortKey)
+        self.img_paths = [f"{OUTPUT_DIR}/{f}" for f in fnames]
         self.main_img_path = self.img_paths[0] if self.img_paths else None
         
         main_width, sub_width = int(7 * parent.width() / 10), int(parent.width() * 0.23)
@@ -215,12 +216,23 @@ class CapturedPhotoReviewScreen(QWidget):
     def go_to_next_page(self):
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
-            self.parent.setCurrentIndex(current_index + 1)
-            next_screen = self.parent.widget(self.parent.currentIndex())
-            next_screen.update_variables(self.img_paths, self.depth_paths)
+            self.loading_screen = LoadingScreen(self.parent)
+            self.loading_screen.show()
+
+            self.loading_worker = LoadingWorker(self.img_paths, self.depth_paths, self.parent)
+            self.loading_worker.progress_changed.connect(self.loading_screen.update_progress)
+            self.loading_worker.finished.connect(self.on_loading_finished)
+            self.loading_worker.start()
             
         else:
             print("Already on the last page")
+    
+    def on_loading_finished(self):
+        # self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
+        # next_screen = self.parent.widget(self.parent.currentIndex())
+        # next_screen.update_variables(self.img_paths, self.depth_paths)
+        self.loading_screen.close()
+
 
 if __name__ == "__main__":
     # Run the CapturedPhotoReviewScreen on its own

@@ -7,7 +7,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt
 import re
 
-OUTPUT_PATH = 'input_images'
+from Screens.Constants import OUTPUT_PATH
 
 # Preprocessing Page
 class FinishingScreen(QWidget):

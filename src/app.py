@@ -8,13 +8,14 @@ from Screens.CapturedPhotoReview import CapturedPhotoReviewScreen
 from Screens.Preview import PreviewScreen
 from Screens.Preprocessing import PreprocessingScreen
 from Screens.Welcome import WelcomeScreen
+from Screens.Constants import WIN_WIDTH, WIN_HEIGHT
 
 # Main Application
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Synthetic Data Generator")
-        self.setFixedSize(700, 650)
+        self.setFixedSize(WIN_WIDTH, WIN_HEIGHT)
         self.setWindowIcon(QIcon("./src/Icons/app_icon.svg")) 
 
         
