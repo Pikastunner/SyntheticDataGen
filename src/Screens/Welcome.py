@@ -107,7 +107,7 @@ class WelcomeScreen(QWidget):
             self.go_to_next_page()
             #self.parent.setCurrentIndex(1)  # Go to Camera Preview screen
             preview_screen = self.parent.widget(1)  # Index 1 is the PreviewScreen
-            #XX preview_screen.start_camera_worker()
+            preview_screen.start_camera_worker()
         else:
             # Create an error message box
             error_msg = QMessageBox()
