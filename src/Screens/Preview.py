@@ -21,7 +21,7 @@ class PreviewScreen(QMainWindow):
         self.image_label.setFixedSize(640, 480)
 
         # Button to toggle between RGB and depth
-        self.toggle_button = QPushButton("Show Depth", self)
+        self.toggle_button = QPushButton("Toggle Preview", self)
         self.toggle_button.clicked.connect(self.toggle_image)
 
         self.take_photo_button = QPushButton("Take Photo", self)
@@ -82,10 +82,10 @@ class PreviewScreen(QMainWindow):
         # Toggle display between  RGB and depth frames.
         self.showing_rgb = not self.showing_rgb
         if self.showing_rgb:
-            self.toggle_button.setText("Show Depth")
+            self.toggle_button.setText("Show Depth View")
             self.display_rgb_image(self.current_frame[0])
         else:
-            self.toggle_button.setText("Show RGB")
+            self.toggle_button.setText("Show RGB View")
             self.display_depth_image(self.current_frame[1])
 
     def take_photo(self):
