@@ -11,28 +11,28 @@ class UploadScreen(QWidget):
 
         # Text Section
         text_section = QWidget()
-        text_section.setObjectName("OptionsTextSection")
+        text_section.setObjectName("UploadTextSection")
 
         text_section_layout = QVBoxLayout()
 
         text_area = QWidget()
         
         title = QLabel("Upload RGB and Depth Images")
-        title.setObjectName("OptionsTitle")
+        title.setObjectName("UploadTitle")
 
         upload_instruction_title = QLabel("Instructions:")
-        upload_instruction_title.setObjectName("OptionsNormalText")
+        upload_instruction_title.setObjectName("UploadNormalText")
         upload_instructions = QLabel("To enhance 3D model generation, please upload RGB (color) images alongside their corresponding depth images. Each RGB image should have an associated depth image file that represents the same scene.")
-        upload_instructions.setObjectName("OptionsNormalText")
+        upload_instructions.setObjectName("UploadNormalText")
 
 
         upload_guideline_title = QLabel("Guidelines:")
-        upload_guideline_title.setObjectName("OptionsNormalText")
+        upload_guideline_title.setObjectName("UploadNormalText")
         upload_file_format_info = QLabel("File Format: Supported formats for RGB and Depth images are .jpg, .png, and .bmp.")
-        upload_file_format_info.setObjectName("OptionsNormalText")
+        upload_file_format_info.setObjectName("UploadNormalText")
 
         upload_image_pairing_info = QLabel("Image Pairing: Ensure each RGB image has a matching depth image file uploaded in the same order.")
-        upload_image_pairing_info.setObjectName("OptionsNormalText")
+        upload_image_pairing_info.setObjectName("UploadNormalText")
 
         text_area_layout = QVBoxLayout()
         text_area_layout.addWidget(title)
@@ -45,7 +45,7 @@ class UploadScreen(QWidget):
         text_area.setLayout(text_area_layout)
 
         empty_area = QWidget()
-        empty_area.setObjectName("OptionsTextSection")
+        empty_area.setObjectName("UploadTextSection")
 
         empty_area_layout = QHBoxLayout()
 
