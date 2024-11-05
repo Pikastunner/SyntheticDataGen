@@ -31,11 +31,8 @@ class CameraWorker(QThread):
             while self.running:
                 try:
                     frames = self.pipeline.wait_for_frames(10000)  # 10-second timeout
-                    align_to = rs.stream.color  # Align depth to RGB
-                    align = rs.align(align_to)
-                    aligned_frames = align.process(frames)
-                    color_frame = aligned_frames.get_color_frame()
-                    depth_frame = aligned_frames.get_depth_frame()
+                    color_frame = frames.get_color_frame()
+                    depth_frame = frames.get_depth_frame()
                     if not color_frame or not depth_frame:
                         continue
                     
@@ -112,18 +109,31 @@ def save_images(color_image, depth_image):
     cv2.imwrite(depth_image_colormap_filename, depth_colormap)
     cv2.imwrite(depth_image_filename, depth_image)
 
+
     return rgb_image_filename, depth_image_filename, depth_image_colormap_filename
 
 def create_image_id():
     """Create a unique image ID based on the number of files in the output folder"""
     files = os.listdir(OUTPUT_PATH)
     return int(len(files) / 3)
-
+    
+# Function to check if camera is connected
 def is_camera_connected():
+   # return True
     try:
+        # Create a context object to manage devices
         context = rs.context()
+
+        # Get a list of connected devices
         devices = context.query_devices()
-        return len(devices) > 0
+
+        # Check if any devices are connected
+        if len(devices) > 0:
+            print(f"Connected devices: {len(devices)}")
+            return True
+        else:
+            print("No RealSense devices connected.")
+            return False
     except Exception as e:
         print(f"Error while checking devices: {str(e)}")
         return False
