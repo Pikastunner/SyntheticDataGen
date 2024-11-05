@@ -17,32 +17,18 @@ class FinishingScreen(QWidget):
 
         # Set up the initial container
         text_layout = QVBoxLayout()
-        text_area = QWidget()
-        text_area.setStyleSheet("background-color: #d9d9d9;")
+        text_area = QWidget(objectName="FinScreenTextArea")
 
         # Working within the initial container
         text_container_layout = QVBoxLayout()
-        title = QLabel("Synthetic Data Generation Complete")
-        title.setStyleSheet(""" 
-    font-size: 18px;
-    margin: 15px; """)
+        title = QLabel("Synthetic Data Generation Complete", objectName="FinScreenTitle")
 
         self.directory_path = '../input_images'
-        location_text = QLabel(f"View data in the following <a href='{self.directory_path}'>directory</a>")
-        location_text.setStyleSheet("""    margin-left: 15px;
-    margin-right: 15px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    font-size: 12px;""")
+        location_text = QLabel(f"View data in the following <a href='{self.directory_path}'>directory</a>", objectName="FinScreenLocationText")
         location_text.setOpenExternalLinks(False)        
         location_text.linkActivated.connect(self.open_directory)
 
-        data_caption = QLabel("Preview of generated data")
-        data_caption.setStyleSheet("""    margin-left: 15px;
-    margin-right: 20px;
-    margin-top: 10px;
-    font-size: 12px;""")
-        
+        data_caption = QLabel("Preview of generated data", objectName="FinScreenDataCaption")
         text_container_layout.addWidget(title)
         text_container_layout.addWidget(location_text)
         text_container_layout.addWidget(data_caption)
@@ -53,14 +39,12 @@ class FinishingScreen(QWidget):
 
         # Set up the initial container
         generated_data_layout = QHBoxLayout()
-        generated_data_area = QWidget()
-        generated_data_area.setStyleSheet("background-color: #d9d9d9;")
+        generated_data_area = QWidget(objectName="FinScreenGenDataArea")
 
         # Working within the initial container
         total_layout = QHBoxLayout()
         total_layout.setSpacing(10)
-        self.large_image_area = QWidget()
-        self.large_image_area.setStyleSheet("background-color: #d9d9d9; margin-left: 15px;")
+        self.large_image_area = QWidget(objectName="FinScreenLargeImageArea")
 
         large_image_layout = QVBoxLayout()
         large_image_layout.setContentsMargins(0, 0, 0, 0)
@@ -76,17 +60,14 @@ class FinishingScreen(QWidget):
 
         self.apply_image(self.large_image_region, 0, self.large_image_dim)
 
-        navigation_image_region = QWidget()
-        navigation_image_region.setStyleSheet("background-color: #d9d9d9;")
+        navigation_image_region = QWidget(objectName="FinScreenNavigationRegion")
 
         navigation_image_region_layout = QVBoxLayout()
         
-        self.image_info = QLabel()
+        self.image_info = QLabel(objectName="FinImageInfo")
         self.update_image_info()
-        self.image_info.setStyleSheet("font-size: 12px;")
 
         next_button = QPushButton("Next")
-        next_button.setStyleSheet("background-color: #ededed")
         next_button.setFixedSize(80, 20)
         next_button.clicked.connect(self.next_image)
 
@@ -100,16 +81,13 @@ class FinishingScreen(QWidget):
 
         self.large_image_area.setLayout(large_image_layout)
 
-        self.small_image_area = QWidget()
-        self.small_image_area.setStyleSheet("background-color: #d9d9d9; margin-right: 15px;")
+        self.small_image_area = QWidget(objectName="FinSmallImageArea")
 
         small_image_layout = QVBoxLayout()
         small_image_layout.setContentsMargins(0, 0, 0, 0)
         small_image_layout.setSpacing(0)
         
-        self.small_image_region = QWidget()
-        self.small_image_region.setStyleSheet("background-color: #d9d9d9;")
-
+        self.small_image_region = QWidget(objectName="FinSmallImageRegion")
         small_image_region_layout = QVBoxLayout()
         small_image_region_layout.setContentsMargins(0, 0, 0, 0)
         small_image_region_layout.setSpacing(10)
@@ -121,13 +99,10 @@ class FinishingScreen(QWidget):
         
         self.small_image_one = QLabel()
         self.apply_image(self.small_image_one, 1, self.small_image_dim)
-        # self.small_image_one.setStyleSheet("background-color: pink")
         self.small_image_two = QLabel()
         self.apply_image(self.small_image_two, 2, self.small_image_dim)
-        # self.small_image_two.setStyleSheet("background-color: green")
         self.small_image_three = QLabel()
         self.apply_image(self.small_image_three, 3, self.small_image_dim)
-        # self.small_image_three.setStyleSheet("background-color: yellow")
         
         small_image_region_layout.addWidget(self.small_image_one)
         small_image_region_layout.addWidget(self.small_image_two)
@@ -157,7 +132,6 @@ class FinishingScreen(QWidget):
         
         # Create next button with specified size and alignment
         self.finish_button = QPushButton("Finish")
-        self.finish_button.setStyleSheet("background-color: #ededed;")
         self.finish_button.setFixedSize(100, 30)
         self.finish_button.clicked.connect(self.exit_app)
         bottom_layout.addWidget(self.finish_button, 0, Qt.AlignRight | Qt.AlignBottom)

@@ -21,10 +21,20 @@ def aruco_board():
     return aruco.Board(objPoints=np.array(objectPoints, dtype=np.float32), dictionary=aruco.getPredefinedDictionary(aruco.DICT_4X4_50), ids=np.array([0, 1, 2, 3]))
 
 
+# def camera_matrix():
+#     return np.array([[607.61181641, 0, 326.71447754],
+#         [  0,       607.38842773, 245.25457764],
+#         [  0,          0,          1,       ]])
+
 def camera_matrix():
-    return  np.array([[606.86, 0, 321.847],
-                                       [0, 606.86, 244.995],
-                                       [0, 0, 1]])
+    return np.array([[387.2332763671875, 0, 318.49847412109375],
+                     [0, 387.2332763671875, 241.1577606201172],
+                     [0, 0, 1]])
+
+
 
 def dist_coeffs():
     return np.zeros(5)
+
+# def dist_coeffs():
+#     return np.array([ -0.3321, 0.1393, 0.0002, 0.0001, 0.0])

@@ -48,13 +48,12 @@ class CapturedPhotoReviewScreen(QWidget):
         main_layout = QVBoxLayout()
 
         # Row 1: Heading "Captured Photo Review"
-        heading_label = QLabel("Captured Photo Review")
-        heading_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        heading_label = QLabel("Captured Photo Review", objectName="PhotoReviewHeading")
         heading_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(heading_label)
 
         # Row 2: Text "Confirm that these are the photos to use"
-        confirm_label = QLabel("Confirm that these are the photos to use")
+        confirm_label = QLabel("Confirm that these are the photos to use", objectName="CaptureConfirmLabel")
         main_layout.addWidget(confirm_label)
 
         # Row 3: Two columns with a large image frame and three smaller image frames
@@ -105,19 +104,36 @@ class CapturedPhotoReviewScreen(QWidget):
         row3_layout.addLayout(small_images_layout)
         main_layout.addLayout(row3_layout)
 
-        # Row 4: Buttons "Back" and "Next", right aligned
-        button_layout = QHBoxLayout()
-        button_layout.addStretch(1)  # Pushes the buttons to the right
+        navigation_layout = QHBoxLayout()
+        navigation_area = QWidget()
+        navigation_buttons_layout = QHBoxLayout()
 
-        back_button = QPushButton("Back")
+        # Spacer to shift the buttons to the right
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        navigation_buttons_layout.addWidget(spacer)
+
+        back_button = QPushButton("Back", objectName="BackPageButton")
+        back_button.setFixedSize(100, 30)
         back_button.clicked.connect(self.go_to_back_page)
-        next_button = QPushButton("Next")
+
+        next_button = QPushButton("Next", objectName="NextPageButton")
+        next_button.setFixedSize(100, 30)
         next_button.clicked.connect(self.go_to_next_page)
 
-        button_layout.addWidget(back_button)
-        button_layout.addWidget(next_button)
+        # Add the buttons to the layout with a small gap between them
+        navigation_buttons_layout.addWidget(back_button)
+        navigation_buttons_layout.addSpacing(10)  # Set the gap between the buttons
+        navigation_buttons_layout.addWidget(next_button)
 
-        main_layout.addLayout(button_layout)
+        # Align buttons to the right and bottom
+        navigation_buttons_layout.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+
+        navigation_area.setLayout(navigation_buttons_layout)
+        navigation_layout.addWidget(navigation_area)
+        
+        # Add to main layout
+        main_layout.addLayout(navigation_layout)
 
         # Set the layout to the main window
         self.setLayout(main_layout)
@@ -138,9 +154,8 @@ class CapturedPhotoReviewScreen(QWidget):
         return pmap
 
     def image_frame(self, img_path: str, width: int, length: int) -> QLabel:
-        frame = QLabel(self)
+        frame = QLabel(self, objectName="ImageFrame")
         frame.setFixedSize(width, length)
-        frame.setStyleSheet("border: 2px solid black;")
         if img_path:
             frame.setPixmap(self.newPixmap(frame, img_path))
         return frame
