@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QStackedWidget, QPushButt
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt, QSize
 
+from Screens.Options import OptionsScreen
 from Screens.Finishing import FinishingScreen
 from Screens.CapturedPhotoReview import CapturedPhotoReviewScreen
 from Screens.Preview import PreviewScreen
@@ -34,6 +35,7 @@ class MainApp(QMainWindow):
         
         # Add screens
         self.stacked_widget.addWidget(WelcomeScreen(self.stacked_widget))
+        self.stacked_widget.addWidget(OptionsScreen(self.stacked_widget))
         self.stacked_widget.addWidget(PreviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(PreprocessingScreen(self.stacked_widget))

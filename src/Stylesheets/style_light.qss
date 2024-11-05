@@ -5,6 +5,7 @@ QWidget#GreenHalf {
 QLabel#Label1, 
 QLabel#Preprocessing_Title, 
 QWidget#PreprocessingLabel, 
+QLabel#OptionsTitle,
 QLabel#FinScreenTitle {
     font-size: 18px;
     font-weight: bold;
@@ -13,6 +14,8 @@ QLabel#FinScreenTitle {
 
 QLabel#Label2, 
 QLabel#FinScreenLocationText, 
+QLabel#OptionsNormalText,
+QRadioButton#OptionsNormalText,
 QLabel#FinScreenDataCaption {
     font-size: 12px;
     margin: 10px 30px 10px 15px;
@@ -41,7 +44,8 @@ QWidget#FinSmallImageArea,
 QWidget#FinSmallImageRegion,
 QWidget#PreprocessingTitleArea,
 QWidget#PreprocessingDirectoryArea,
-QWidget#PreprocessingNavigationArea {
+QWidget#PreprocessingNavigationArea,
+QWidget#OptionsTextSection {
     background-color: #d9d9d9;
 }
 
