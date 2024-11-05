@@ -53,7 +53,8 @@ class PreviewScreen(QMainWindow):
 
         # Initialize Aruco parameters
         self.dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
-        self.parameters = aruco.DetectorParameters_create()
+        self.parameters = aruco.DetectorParameters()
+
         self.parameters.adaptiveThreshWinSizeMax = 80
         self.parameters.errorCorrectionRate = 1
         self.parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
