@@ -10,6 +10,7 @@ QLabel#Label1,
 QLabel#Preprocessing_Title, 
 QWidget#PreprocessingLabel, 
 QLabel#OptionsTitle,
+QLabel#UploadTitle,
 QLabel#FinScreenTitle {
     font-size: 18px;
     font-weight: bold;
@@ -20,6 +21,7 @@ QLabel#FinScreenTitle {
 QLabel#Label2, 
 QLabel#FinScreenLocationText, 
 QLabel#OptionsNormalText,
+QLabel#UploadNormalText,
 QRadioButton#OptionsNormalText,
 QLabel#FinScreenDataCaption {
     font-size: 12px;
@@ -47,7 +49,8 @@ QWidget#FinSmallImageArea,
 QWidget#FinSmallImageRegion,
 QWidget#PreprocessingTitleArea,
 QWidget#PreprocessingDirectoryArea,
-QWidget#PreprocessingNavigationArea 
+QWidget#PreprocessingNavigationArea,
+QWidget#UploadTextSection,
 QWidget#OptionsTextSection {
     background-color: #2e2e2e; /* Darker background */
 }
