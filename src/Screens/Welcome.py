@@ -49,19 +49,26 @@ class WelcomeScreen(QWidget):
         # Create a horizontal layout for the buttons
         button_layout = QHBoxLayout()
 
-        # Load button
-        load_button = QPushButton("Load")
-        load_button.setToolTip("Start from a pre-exsting set of images.")
-        load_button.setFixedSize(100, 30)
-        load_button.clicked.connect(self.on_load_button_pressed)
-        button_layout.addWidget(load_button)
 
         # Next button
-        next_button = QPushButton("Capture")
-        next_button.setToolTip("Preview your camera output and capture images.")
+        next_button = QPushButton("Next")
         next_button.setFixedSize(100, 30)
-        next_button.clicked.connect(self.check_camera)
+        next_button.clicked.connect(self.go_to_next_page)
         button_layout.addWidget(next_button)
+
+        # # Load button
+        # load_button = QPushButton("Load")
+        # load_button.setToolTip("Start from a pre-exsting set of images.")
+        # load_button.setFixedSize(100, 30)
+        # load_button.clicked.connect(self.on_load_button_pressed)
+        # button_layout.addWidget(load_button)
+
+        # # Next button
+        # next_button = QPushButton("Capture")
+        # next_button.setToolTip("Preview your camera output and capture images.")
+        # next_button.setFixedSize(100, 30)
+        # next_button.clicked.connect(self.check_camera)
+        # button_layout.addWidget(next_button)
 
         button_layout.setSpacing(16)  # Set spacing to 10 pixels
 

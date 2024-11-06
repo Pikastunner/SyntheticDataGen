@@ -35,3 +35,4 @@ PyQt5==5.15.11
 PyQt5_sip==12.15.0
 pyrealsense2==2.55.1.6486
 rembg==2.0.59
+usd-core==24.11
