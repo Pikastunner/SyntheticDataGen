@@ -53,7 +53,7 @@ class PreviewScreen(QMainWindow):
 
         # Initialize Aruco parameters
         self.dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
-        self.parameters = aruco.self.DetectorParameters()
+        self.parameters = aruco.DetectorParameters()
         self.parameters.adaptiveThreshWinSizeMax = 80  # Increase max value for better handling of varying light
         self.parameters.errorCorrectionRate = 1
         # self.parameters.useAruco3Detection = True
@@ -77,18 +77,21 @@ class PreviewScreen(QMainWindow):
 
     def update_image(self, rgb_frame, depth_frame):
         """Update the QLabel with the new frame and perform ArUco detection."""
+         # Convert to BGR as needed for OpenCV functions
+        bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+        
         # Convert the image to grayscale for marker detection
-        gray_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2GRAY)
+        gray_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2GRAY)
+        
+        # Detect ArUco markers
         corners, ids, rejectedImgPoints = self.detector.detectMarkers(gray_frame)
-
+        
         # If markers are detected, annotate the image
         if ids is not None:
-
-            rgb_frame = aruco.drawDetectedMarkers(rgb_frame, corners, ids)  # Draw detected markers after pose estimation
-
-
-        # Convert BGR to RGB
-        rgb_image = rgb_frame
+            bgr_frame = aruco.drawDetectedMarkers(bgr_frame, corners, ids)  # Draw detected markers on the frame
+        
+        # Convert BGR back to RGB for displaying
+        rgb_image = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
 
         # Convert the image to QImage format
         height, width, channel = rgb_image.shape
