@@ -52,13 +52,17 @@ class PreviewScreen(QMainWindow):
         self.saved_depth_image_filenames = []
 
         # Initialize Aruco parameters
-        self.dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
-        self.parameters = aruco.DetectorParameters()
+        dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+        parameters = aruco.DetectorParameters()
+        parameters.adaptiveThreshWinSizeMax = 80  # Increase max value for better handling of varying light
+        parameters.errorCorrectionRate = 1
+        # parameters.useAruco3Detection = True
+        parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
+        parameters.cornerRefinementMaxIterations = 40
 
-        self.parameters.adaptiveThreshWinSizeMax = 80
-        self.parameters.errorCorrectionRate = 1
-        self.parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
-        self.parameters.cornerRefinementMaxIterations = 40
+        # Detect ArUco markers before background removal
+        self.detector = aruco.ArucoDetector(dictionary, parameters)
+        
 
     def start_camera_worker(self):
         if is_camera_connected():
@@ -74,8 +78,8 @@ class PreviewScreen(QMainWindow):
     def update_image(self, rgb_frame, depth_frame):
         """Update the QLabel with the new frame and perform ArUco detection."""
         # Convert the image to grayscale for marker detection
-        gray = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2GRAY)
-        corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, self.dictionary, parameters=self.parameters)
+        gray_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2GRAY)
+        corners, ids, rejectedImgPoints = self.detector(gray_frame, self.dictionary, parameters=self.parameters)
 
         # If markers are detected, annotate the image
         if ids is not None:
