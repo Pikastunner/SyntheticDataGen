@@ -52,16 +52,16 @@ class PreviewScreen(QMainWindow):
         self.saved_depth_image_filenames = []
 
         # Initialize Aruco parameters
-        dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
-        parameters = aruco.DetectorParameters()
-        parameters.adaptiveThreshWinSizeMax = 80  # Increase max value for better handling of varying light
-        parameters.errorCorrectionRate = 1
-        # parameters.useAruco3Detection = True
-        parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
-        parameters.cornerRefinementMaxIterations = 40
+        self.dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+        self.parameters = aruco.self.DetectorParameters()
+        self.parameters.adaptiveThreshWinSizeMax = 80  # Increase max value for better handling of varying light
+        self.parameters.errorCorrectionRate = 1
+        # self.parameters.useAruco3Detection = True
+        self.parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
+        self.parameters.cornerRefinementMaxIterations = 40
 
         # Detect ArUco markers before background removal
-        self.detector = aruco.ArucoDetector(dictionary, parameters)
+        self.detector = aruco.ArucoDetector(self.dictionary, self.parameters)
         
 
     def start_camera_worker(self):
@@ -79,22 +79,11 @@ class PreviewScreen(QMainWindow):
         """Update the QLabel with the new frame and perform ArUco detection."""
         # Convert the image to grayscale for marker detection
         gray_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2GRAY)
-        corners, ids, rejectedImgPoints = self.detector(gray_frame, self.dictionary, parameters=self.parameters)
+        corners, ids, rejectedImgPoints = self.detector.detectMarkers(gray_frame)
 
         # If markers are detected, annotate the image
         if ids is not None:
-            # Use the matchImagePoints method to get object and image points
-            objpoints, imgpoints = self.aruco_board.matchImagePoints(corners, ids)
-            
-            # Check if objpoints and imgpoints are valid
-            if objpoints is not None and imgpoints is not None and len(objpoints) >= 4 and len(imgpoints) >= 4:
-                _, rvec, tvec = cv2.solvePnP(objectPoints=objpoints, imagePoints=imgpoints,
-                                               cameraMatrix=self.camera_matrix,
-                                               distCoeffs=self.dist_coeffs,
-                                               flags=cv2.SOLVEPNP_ITERATIVE)
-                # Draw the axes on the frame using the pose estimation results
-                rgb_frame = aruco.drawAxis(rgb_frame, self.camera_matrix, self.dist_coeffs, rvec, tvec, length=0.1)  # Adjust length as needed
-            
+
             rgb_frame = aruco.drawDetectedMarkers(rgb_frame, corners, ids)  # Draw detected markers after pose estimation
 
 
