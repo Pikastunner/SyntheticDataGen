@@ -132,6 +132,9 @@ class UploadScreen(QWidget):
         main_layout.setSpacing(0)
         main_layout.addWidget(text_section, 90)
         main_layout.addWidget(navigation_area, 10)
+
+        self.saved_depth_image_filenames = []
+        self.saved_rgb_image_filenames = []
         
     def go_to_back_page(self):
         current_index = self.parent.currentIndex()
@@ -140,8 +143,56 @@ class UploadScreen(QWidget):
         else:
             print("Already on the first page")
 
+    def mismatch_images_error(self):
+        # Create an error message box
+        error_msg = QMessageBox()
+        
+        # Set critical icon for error message
+        error_msg.setIcon(QMessageBox.Critical)
+        
+        # Set the title of the error message box
+        error_msg.setWindowTitle("Image Upload Error")
+        
+        # Set the detailed text to help the user troubleshoot
+        error_msg.setText('<span style="color:#005ace;font-size: 15px;">Mismatched Number of Images</span>')
+        error_msg.setInformativeText("Please ensure that each RGB image has a corresponding depth image.")
+        
+        # Set the standard button to close the message box
+        error_msg.setStandardButtons(QMessageBox.Ok)
+
+        # Execute and show the message box
+        error_msg.exec_()
+        return
+
+    def no_image_uploaded_error(self):
+        # Create an error message box
+        error_msg = QMessageBox()
+        
+        # Set critical icon for error message
+        error_msg.setIcon(QMessageBox.Critical)
+        
+        # Set the title of the error message box
+        error_msg.setWindowTitle("Image Upload Error")
+        
+        # Set the detailed text to help the user troubleshoot
+        error_msg.setText('<span style="color:#005ace;font-size: 15px;">No Images Uploaded</span>')
+        error_msg.setInformativeText("Please upload at least one RGB image and one depth image to proceed.")
+        
+        # Set the standard button to close the message box
+        error_msg.setStandardButtons(QMessageBox.Ok)
+
+        # Execute and show the message box
+        error_msg.exec_()
+        return
+
     def go_to_next_page(self):
         current_index = self.parent.currentIndex()
+        if (len(self.saved_depth_image_filenames) != len(self.saved_rgb_image_filenames)):
+            self.mismatch_images_error()
+            return
+        if (len(self.saved_depth_image_filenames) == 0 or len(self.saved_rgb_image_filenames) == 0):
+            self.no_image_uploaded_error()
+            return
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 1)
         else:
