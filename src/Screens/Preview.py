@@ -1,4 +1,6 @@
-# preview_screen.py
+
+# PreviewScreen class for the camera feed preview
+
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QLabel, QVBoxLayout,
     QHBoxLayout, QMainWindow
@@ -8,6 +10,9 @@ from PyQt5.QtCore import Qt
 import cv2
 
 from camera import CameraWorker, is_camera_connected
+
+import cv2
+from cv2 import aruco
 
 class PreviewScreen(QMainWindow):
     def __init__(self, parent):
@@ -51,6 +56,19 @@ class PreviewScreen(QMainWindow):
         self.saved_rgb_image_filenames = []
         self.saved_depth_image_filenames = []
 
+        # Initialize Aruco parameters
+        self.dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+        self.parameters = aruco.DetectorParameters()
+        self.parameters.adaptiveThreshWinSizeMax = 80  # Increase max value for better handling of varying light
+        self.parameters.errorCorrectionRate = 1
+        # self.parameters.useAruco3Detection = True
+        self.parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
+        self.parameters.cornerRefinementMaxIterations = 40
+
+        # Detect ArUco markers before background removal
+        self.detector = aruco.ArucoDetector(self.dictionary, self.parameters)
+        
+
     def start_camera_worker(self):
         if is_camera_connected():
             self.camera_worker = CameraWorker()
@@ -58,12 +76,32 @@ class PreviewScreen(QMainWindow):
             self.camera_worker.start()
 
     def update_image(self, rgb_frame, depth_frame):
+
+        """Update the QLabel with the new frame and perform ArUco detection."""
+         # Convert to BGR as needed for OpenCV functions
+        bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+        
+        # Convert the image to grayscale for marker detection
+        gray_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2GRAY)
+        
+        # Detect ArUco markers
+        corners, ids, rejectedImgPoints = self.detector.detectMarkers(gray_frame)
+        
+        # If markers are detected, annotate the image
+        if ids is not None:
+            bgr_frame = aruco.drawDetectedMarkers(bgr_frame, corners, ids)  # Draw detected markers on the frame
+        
+        # Convert BGR back to RGB for displaying
+        rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+        
+
         """Update the QLabel with the new RGB or depth frame based on the toggle state."""
         self.current_frame = (rgb_frame, depth_frame)
         if self.showing_rgb:
             self.display_rgb_image(rgb_frame)
         else:
             self.display_depth_image(depth_frame)
+
 
     def display_rgb_image(self, rgb_frame):
         height, width, channel = rgb_frame.shape
