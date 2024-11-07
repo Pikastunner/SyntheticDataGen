@@ -2,7 +2,9 @@ out/
 .venv/
 run.sh
 test.py
-__pycache__/
 _output/
 output_scene/
-src/__pycache__
+**/__pycache__/
+/__pycache__
+camera.cpython-310.pyc
+.pycache/
