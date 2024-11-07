@@ -8,13 +8,87 @@ from PyQt5.QtCore import Qt
 import re
 
 from Screens.Constants import OUTPUT_PATH
+from pxr import Usd, UsdGeom, Vt, Gf
+import numpy as np
+
 
 # Preprocessing Page
 class FinishingScreen(QWidget):
+
+    # This function is called when FinishingScreen made visible    
+    def update_variables(self, triangle_mesh, output_path):
+        self.mesh = triangle_mesh
+        self.output_path = output_path
+
+        FinishingScreen.convert_mesh_to_usd(self.mesh, usd_file_path=self.output_path+"/mesh_usd.usda")
+        FinishingScreen.generate_images()
+
+        self.setup_gui()
+
+
+    @staticmethod
+    def convert_mesh_to_usd(open3d_mesh, usd_file_path="./_output/mesh_usd.usda"):
+        # Ensure the directory exists
+        output_directory = os.path.dirname(usd_file_path)
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+
+        # Create a new USD stage
+        stage = Usd.Stage.CreateNew(usd_file_path)
+
+        # Create a new mesh in the stage
+        mesh_prim = UsdGeom.Mesh.Define(stage, '/GeneratedMesh')
+
+        # Get vertices and triangles from the Open3D mesh
+        vertices = np.asarray(open3d_mesh.vertices)
+        triangles = np.asarray(open3d_mesh.triangles)
+
+        # Set vertex points in the USD mesh
+        mesh_prim.GetPointsAttr().Set(Vt.Vec3fArray(vertices.tolist()))
+
+        # Flatten the triangle indices and set face vertex indices
+        face_vertex_indices = triangles.flatten().tolist()
+        mesh_prim.GetFaceVertexIndicesAttr().Set(Vt.IntArray(face_vertex_indices))
+
+        # Set face counts assuming all faces are triangles
+        face_counts = [3] * len(triangles)
+        mesh_prim.GetFaceVertexCountsAttr().Set(Vt.IntArray(face_counts))
+
+        # Check if the Open3D mesh has vertex colors
+        if open3d_mesh.has_vertex_colors():
+            vertex_colors = np.asarray(open3d_mesh.vertex_colors)
+            # Convert vertex colors to a format compatible with USD
+            color_values = [Gf.Vec3f(*color) for color in vertex_colors]
+
+            # Set the display color attribute with vertex colors
+            color_attr = mesh_prim.GetDisplayColorAttr()
+            color_attr.Set(Vt.Vec3fArray(color_values))
+
+        # Save the stage
+        stage.GetRootLayer().Save()
+
+
+
+    @staticmethod
+    def generate_images(obj_usd_location=None):
+        import subprocess   # Have to run as seperate python thingo because it causes errors
+        subprocess.run(['python', './src/Screens/Generator.py'], capture_output=True, text=True)
+
+
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
 
+        self.output_path = str()
+        self.image_index = 0
+        self.image_info = QLabel()
+        self.large_image_region = QLabel()
+        self.processed_images = None
+        self.small_image_one = QLabel()
+        self.small_image_dim = None
+
+
+    def setup_gui(self):
         # Set up the initial container
         text_layout = QVBoxLayout()
         text_area = QWidget(objectName="FinScreenTextArea")
@@ -23,8 +97,7 @@ class FinishingScreen(QWidget):
         text_container_layout = QVBoxLayout()
         title = QLabel("Synthetic Data Generation Complete", objectName="FinScreenTitle")
 
-        self.directory_path = '../input_images'
-        location_text = QLabel(f"View data in the following <a href='{self.directory_path}'>directory</a>", objectName="FinScreenLocationText")
+        location_text = QLabel(f"View data in the following <a href='{self.output_path}'>directory</a>", objectName="FinScreenLocationText")
         location_text.setOpenExternalLinks(False)        
         location_text.linkActivated.connect(self.open_directory)
 
@@ -44,14 +117,14 @@ class FinishingScreen(QWidget):
         # Working within the initial container
         total_layout = QHBoxLayout()
         total_layout.setSpacing(10)
-        self.large_image_area = QWidget(objectName="FinScreenLargeImageArea")
+        large_image_area = QWidget(objectName="FinScreenLargeImageArea")
 
         large_image_layout = QVBoxLayout()
         large_image_layout.setContentsMargins(0, 0, 0, 0)
         large_image_layout.setSpacing(0)
 
         self.large_image_region = QLabel()
-        self.processed_images = self.load_rgb_images()
+        self.processed_images = self.load_output_images("./_output/")
         self.image_index = 0
 
         available_width = int(self.large_image_region.width() * 0.80)
@@ -79,9 +152,9 @@ class FinishingScreen(QWidget):
 
         navigation_image_region.setLayout(navigation_image_region_layout)
 
-        self.large_image_area.setLayout(large_image_layout)
+        large_image_area.setLayout(large_image_layout)
 
-        self.small_image_area = QWidget(objectName="FinSmallImageArea")
+        small_image_area = QWidget(objectName="FinSmallImageArea")
 
         small_image_layout = QVBoxLayout()
         small_image_layout.setContentsMargins(0, 0, 0, 0)
@@ -96,8 +169,7 @@ class FinishingScreen(QWidget):
         small_available_height = int(self.small_image_region.height() / 3 * 0.85)
         self.small_image_dim = (small_available_width, small_available_height)
 
-        
-        self.small_image_one = QLabel()
+        # self.small_image_one = QLabel()
         self.apply_image(self.small_image_one, 1, self.small_image_dim)
         self.small_image_two = QLabel()
         self.apply_image(self.small_image_two, 2, self.small_image_dim)
@@ -113,15 +185,13 @@ class FinishingScreen(QWidget):
         small_image_layout.setAlignment(Qt.AlignTop)
         small_image_layout.addWidget(self.small_image_region)
 
-        self.small_image_area.setLayout(small_image_layout)
+        small_image_area.setLayout(small_image_layout)
 
-        total_layout.addWidget(self.large_image_area, 75)
-        total_layout.addWidget(self.small_image_area, 25)
+        total_layout.addWidget(large_image_area, 75)
+        total_layout.addWidget(small_image_area, 25)
 
         generated_data_area.setLayout(total_layout)
-
         generated_data_layout.addWidget(generated_data_area)
-
 
         # Set up the initial container
         bottom_area = QHBoxLayout()      
@@ -131,13 +201,12 @@ class FinishingScreen(QWidget):
         bottom_widget.setLayout(bottom_layout)
         
         # Create next button with specified size and alignment
-        self.finish_button = QPushButton("Finish")
-        self.finish_button.setFixedSize(100, 30)
-        self.finish_button.clicked.connect(self.exit_app)
-        bottom_layout.addWidget(self.finish_button, 0, Qt.AlignRight | Qt.AlignBottom)
+        finish_button = QPushButton("Finish")
+        finish_button.setFixedSize(100, 30)
+        finish_button.clicked.connect(self.exit_app)
+        bottom_layout.addWidget(finish_button, 0, Qt.AlignRight | Qt.AlignBottom)
 
         bottom_area.addWidget(bottom_widget)
-
 
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -149,6 +218,7 @@ class FinishingScreen(QWidget):
 
         self.setLayout(main_layout) 
 
+
     def exit_app(self):
         sys.exit()
 
@@ -158,9 +228,9 @@ class FinishingScreen(QWidget):
         if os.name == 'nt':  # Windows
             os.startfile(path)
 
-    def load_rgb_images(self):
-        folder_path = OUTPUT_PATH
-        rgb_image_files = self.get_files_starting_with(folder_path, 'rgb_image')
+    def load_output_images(self, output_path=None):
+        folder_path = output_path if output_path else "./_output"
+        rgb_image_files = self.get_files_starting_with(folder_path, 'rgb')
         if rgb_image_files:
             rgb_images = [cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB) for filename in rgb_image_files]
             return rgb_images
@@ -168,8 +238,7 @@ class FinishingScreen(QWidget):
     def get_files_starting_with(self, folder_path, prefix):
         files = []
         for file in os.listdir(folder_path):
-            if re.search(rf"{prefix}_[0-9]", file):
-            #file.startswith(prefix):
+            if re.search(rf"{prefix}_[0-9]+", file):
                 files.append(os.path.join(folder_path, file))
         return files
 
@@ -180,6 +249,11 @@ class FinishingScreen(QWidget):
         return qimage
 
     def apply_image(self, image: QLabel, index: int, dimensions: tuple):
+        if self.processed_images is None:
+            image.setFixedSize(500, 500)
+            image.setPixmap(QPixmap(500, 500))
+            return
+
         qimage = self.numpy_to_qimage(self.processed_images[(self.image_index + index) % len(self.processed_images)])
         image.setPixmap(QPixmap.fromImage(qimage))
         # Calculate the maximum size for the image based on the available space
@@ -209,5 +283,8 @@ class FinishingScreen(QWidget):
         return
     
     def update_image_info(self):
+        if self.processed_images is None:
+            self.image_info.setText(f"Image #{self.image_index + 1} of 0")
+            return 
         self.image_info.setText(f"Image #{self.image_index + 1} of {len(self.processed_images)}")
 
