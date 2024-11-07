@@ -60,11 +60,11 @@ class PreprocessingScreen(QWidget):
 
         ## GET POINT CLOUD
         self.accumulated_point_cloud = self.generate_point_cloud()
+        # o3d.io.write_point_cloud("./pointcloud2.ply", self.accumulated_point_cloud)
 
         self.triangle_mesh = PreprocessingScreen.generate_mesh_from_pcl(self.accumulated_point_cloud)
         self.graphical_interface_image.setPixmap(PreprocessingScreen.point_cloud_to_image(self.accumulated_point_cloud))
 
-    
 
     ############################################################
             # GUI BEHAVIOUR/DISPLAY
@@ -178,12 +178,10 @@ class PreprocessingScreen(QWidget):
 
     
     def view_3d_interface(self):
-        # coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        # o3d.visualization.draw_geometries([self.accumulated_point_cloud, coordinate_frame])
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        o3d.visualization.draw_geometries([self.triangle_mesh, coordinate_frame])
+        o3d.visualization.draw_geometries([self.accumulated_point_cloud, coordinate_frame])
 
-    
+        
     def select_directory(self):
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
         if directory:
@@ -504,7 +502,11 @@ class PreprocessingScreen(QWidget):
 
         mesh.compute_vertex_normals()
 
-        return mesh
+        # pcl.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.002, max_nn=1000))
+
+
+        return mesh # Temporary
+    
 
 
     ############################################################
