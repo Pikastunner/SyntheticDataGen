@@ -85,7 +85,7 @@ class PreviewScreen(QMainWindow):
         gray_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2GRAY)
         
         # Detect ArUco markers
-        corners, ids, rejectedImgPoints = self.detector.detectMarkers(gray_frame)
+        corners, ids, _ = self.detector.detectMarkers(gray_frame)
         
         # If markers are detected, annotate the image
         if ids is not None:
@@ -149,6 +149,6 @@ class PreviewScreen(QMainWindow):
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 2)
             next_screen = self.parent.widget(self.parent.currentIndex())
-            next_screen.update_variables()
+            next_screen.update_variables(self.saved_rgb_image_filenames, self.saved_depth_image_filenames)
         else:
             print("Already on the last page")

@@ -13,32 +13,14 @@ OUTPUT_PATH = "input_images/"
 
 # Component 5
 class CapturedPhotoReviewScreen(QWidget):
-    def update_variables(self):
-        sortKey = lambda s: int(re.match(r".*_(\d+).png", s).group(1))
-        isRGB = lambda p: p.startswith("rgb_ima")
-        fnames = sorted(filter(isRGB, os.listdir(OUTPUT_PATH)), key=sortKey)
-        self.img_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
-        self.main_img_path = self.img_paths[0] if self.img_paths else None
-
-        isDepth = lambda p: p.startswith("depth_ima") and re.match(".*colormap.*", p) is None
-        fnames = sorted(filter(isDepth, os.listdir(OUTPUT_PATH)), key=sortKey)
-        self.depth_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
-
-        print("Number of depth images:", len(fnames))
-        self.display_images()
-
-
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-
-        sortKey = lambda s: int(re.match(r".*_(\d+).png", s).group(1))
-        isRGB = lambda p: p.startswith("rgb_ima")
-        fnames = sorted(filter(isRGB, os.listdir(OUTPUT_PATH)), key=sortKey)
-        self.img_paths = [f"{OUTPUT_PATH}/{f}" for f in fnames]
-        self.main_img_path = self.img_paths[0] if self.img_paths else None
+    def update_variables(self, rgb_image_filenames, depth_image_filenames):
         
-        main_width, sub_width = int(7 * parent.width() / 10), int(parent.width() * 0.23)
+        self.img_paths = rgb_image_filenames
+        self.depth_paths = depth_image_filenames
+
+        self.main_img_path = self.img_paths[0] if self.img_paths else None
+
+        main_width, sub_width = int(7 * self.parent.width() / 10), int(self.parent.width() * 0.23)
         self.main_img_frame = self.image_frame(self.main_img_path, main_width, int(0.75 * main_width))
         self.sub_img_frame1 = self.image_frame(None, sub_width, int(0.75 * sub_width))
         self.sub_img_frame2 = self.image_frame(None, sub_width, int(0.75 * sub_width))
@@ -48,7 +30,7 @@ class CapturedPhotoReviewScreen(QWidget):
         main_layout = QVBoxLayout()
 
         # Row 1: Heading "Captured Photo Review"
-        heading_label = QLabel("Captured Photo Review", objectName="PhotoReviewHeading")
+        heading_label = QLabel("Photo Review", objectName="PhotoReviewHeading")
         heading_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(heading_label)
 
@@ -140,6 +122,22 @@ class CapturedPhotoReviewScreen(QWidget):
         self.setWindowTitle('Photo Review App')
 
         self.display_images()
+
+
+    def __init__(self, parent):
+        super().__init__()
+        
+        self.parent = parent
+
+        self.img_paths = list()
+        self.main_img_path = None
+
+        self.main_img_frame = QLabel()
+        self.sub_img_frame1 = QLabel()
+        self.sub_img_frame2 = QLabel()
+        self.sub_img_frame3 = QLabel()
+        
+
 
     def newPixmap(self, frame: QLabel, img_path: str) -> QPixmap:
         if not img_path:
