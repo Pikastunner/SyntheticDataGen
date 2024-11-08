@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QPushButton, QLab
                              QFileDialog, QMessageBox, QListWidget, QMainWindow, QStackedWidget, QSizePolicy)
 from PyQt5.QtCore import Qt, QFile, QTextStream, QThread, pyqtSignal
 
+from camera import is_camera_connected
 
 # OptionsScreen class for selecting user's preferences screen
 class OptionsScreen(QWidget):
@@ -55,7 +56,7 @@ class OptionsScreen(QWidget):
 
         next_button = QPushButton("Next", objectName="NextPageButton")
         next_button.setFixedSize(100, 30)
-        next_button.clicked.connect(self.go_to_next_page)
+        next_button.clicked.connect(self.navigate_to_next_page)
         
         navigation_buttons_layout.addWidget(spacer)
         navigation_buttons_layout.addWidget(back_button)
@@ -69,7 +70,40 @@ class OptionsScreen(QWidget):
         main_layout.setSpacing(0)
         main_layout.addWidget(text_section, 90)
         main_layout.addWidget(navigation_area, 10)
-        
+    
+    def navigate_to_next_page(self):
+        if self.load_radio.isChecked() == False:   
+            self.check_camera()
+        else:
+            self.go_to_next_page()
+
+    def check_camera(self):
+        if is_camera_connected():
+            self.go_to_next_page()
+            #self.parent.setCurrentIndex(1)  # Go to Camera Preview screen
+            preview_screen = self.parent.widget(2)  # Index 1 is the PreviewScreen
+            preview_screen.start_camera_worker()
+        else:
+            # Create an error message box
+            error_msg = QMessageBox()
+            
+            # Set critical icon for error message
+            error_msg.setIcon(QMessageBox.Critical)
+            
+            # Set the title of the error message box
+            error_msg.setWindowTitle("Camera Connection Error")
+            
+            # Set the detailed text to help the user troubleshoot
+            error_msg.setText('<span style="color:#005ace;font-size: 15px;">No RealSense camera detected!</span>')
+            error_msg.setInformativeText("Please make sure your Intel RealSense camera is plugged into a USB port and try again.")
+            
+            # Set the standard button to close the message box
+            error_msg.setStandardButtons(QMessageBox.Ok)
+
+            # Execute and show the message box
+            error_msg.exec_()
+
+
     def go_to_back_page(self):
         current_index = self.parent.currentIndex()
         if current_index > 0:
