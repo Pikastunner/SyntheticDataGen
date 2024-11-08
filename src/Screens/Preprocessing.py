@@ -20,7 +20,6 @@ import time
 from scipy.spatial import Delaunay  # Ensure this import is included
 
 
-
 # Preprocessing Page
 class PreprocessingScreen(QWidget):
 
@@ -59,12 +58,50 @@ class PreprocessingScreen(QWidget):
         self.background_image_info.setText(f"Image #1 of {len(self.processed_images)}")
 
         ## GET POINT CLOUD
-        self.accumulated_point_cloud = self.generate_point_cloud()
-        # o3d.io.write_point_cloud("./pointcloud2.ply", self.accumulated_point_cloud)
+        unrefined_cloud = self.generate_point_cloud()
+        
+        ## THIS FILE CONTAINS ALL THE OUTPUT AND CLEARS EACH TIME WE RUN
+        import shutil
+        if os.path.exists("./_output"):
+            # Remove the directory and all of its contents
+            shutil.rmtree("./_output")
+            print(f"Directory /_output/ and all its contents have been removed.")
+        # Recreate the empty directory
+        os.makedirs("./_output")
 
+        print("Initial point cloud has been generated...")
+        print("Refining the point cloud may take several minutes...")
+        o3d.io.write_point_cloud("./_output/pcl.pcd", unrefined_cloud)
+        from Utilities.caller import run_command
+
+        run_command("./src/Utilities/mesh_smooth_utility ./_output/pcl.pcd ./_output/pcl.pcd")
+
+        self.accumulated_point_cloud = o3d.io.read_point_cloud("./_output/pcl.pcd")
+        self.accumulated_point_cloud.colors = unrefined_cloud.colors
+
+        # CREATE TRIANGLE MESH AND MESH PREVIEW
         self.triangle_mesh = PreprocessingScreen.generate_mesh_from_pcl(self.accumulated_point_cloud)
         self.graphical_interface_image.setPixmap(PreprocessingScreen.point_cloud_to_image(self.accumulated_point_cloud))
 
+    @staticmethod
+    def radiate_normals_from_center(mesh):
+        # Get the vertices of the mesh
+        vertices = np.asarray(mesh.vertices)
+
+        # Compute new normals pointing outward from the origin
+        new_normals = []
+        
+        for vertex in vertices:
+            # Calculate the vector from the origin (0, 0, 0) to the vertex
+            normal = vertex  # Vector from origin to vertex
+            # Normalize the normal to ensure it is a unit vector
+            normalized_normal = normal / np.linalg.norm(normal)
+            new_normals.append(normalized_normal)
+
+        # Set the new normals
+        mesh.vertex_normals = o3d.utility.Vector3dVector(np.array(new_normals))
+        
+        return mesh
 
     ############################################################
             # GUI BEHAVIOUR/DISPLAY
@@ -179,8 +216,7 @@ class PreprocessingScreen(QWidget):
     
     def view_3d_interface(self):
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        o3d.visualization.draw_geometries([self.accumulated_point_cloud, coordinate_frame])
-
+        o3d.visualization.draw_geometries([self.triangle_mesh, coordinate_frame])
         
     def select_directory(self):
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
@@ -234,7 +270,7 @@ class PreprocessingScreen(QWidget):
         if ids is not None:
             corners, ids, _, recovered = detector.refineDetectedMarkers(gray_image, board=aruco_board(), detectedCorners=corners, detectedIds=ids, rejectedCorners=rejected,cameraMatrix=camera_matrix(),distCoeffs=dist_coeffs())
             print(f"{len(ids)} aruco markers found")
-            print(ids)
+            # print(ids)
         else:
             return None, None, (None, None)
 
@@ -299,7 +335,8 @@ class PreprocessingScreen(QWidget):
         depth_images = self.load_depth_images(depth_filenames)
         aruco_returned = []
         depth_returned = []
-
+        
+        print("Processing images...")
         with concurrent.futures.ProcessPoolExecutor() as executor:
             futures = {executor.submit(self.process_image, rgb_images[i], depth_images[i]): i 
                        for i in range(min(len(rgb_images), len(depth_images)))}
@@ -310,6 +347,7 @@ class PreprocessingScreen(QWidget):
                     processed_images.append(result[0])
                     depth_returned.append(result[1])
                     aruco_returned.append(result[2])
+        print ("Finished processing images...")
 
         return processed_images, depth_returned, aruco_returned
 
@@ -502,6 +540,8 @@ class PreprocessingScreen(QWidget):
 
         mesh.compute_vertex_normals()
 
+        mesh = PreprocessingScreen.radiate_normals_from_center(mesh)
+
         # pcl.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.002, max_nn=1000))
 
 
@@ -547,3 +587,4 @@ class PreprocessingScreen(QWidget):
             next_screen.update_variables(self.triangle_mesh, self.directory_input.text())
         else:
             print("Already on the last page")
+
