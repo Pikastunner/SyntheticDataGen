@@ -7,7 +7,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt
 import re
 
-from pxr import Usd, UsdGeom, Vt, Gf
+from pxr import Usd, UsdGeom, Gf, Vt, Sdf, UsdShade
 import numpy as np
 
 
@@ -65,13 +65,12 @@ class FinishingScreen(QWidget):
 
         # Save the stage
         stage.GetRootLayer().Save()
-
-
+        
 
     @staticmethod
     def generate_images(obj_usd_location=None):
-        import subprocess   # Have to run as seperate python thingo because it causes errors
-        subprocess.run(['python', './src/Screens/Generator.py'], capture_output=True, text=True)
+        import subprocess  # Runs as separate process to avoid errors
+        subprocess.run(['python', './src/Screens/Generator.py'], stdout=None, stderr=None, text=True)
 
 
     def __init__(self, parent):
