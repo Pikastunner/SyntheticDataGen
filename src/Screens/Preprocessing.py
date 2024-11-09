@@ -62,6 +62,14 @@ class PreprocessingScreen(QWidget):
         self.accumulated_point_cloud = self.generate_point_cloud()
         # o3d.io.write_point_cloud("./pointcloud2.ply", self.accumulated_point_cloud)
 
+        import shutil
+        if os.path.exists("./_output"):
+            # Remove the directory and all of its contents
+            shutil.rmtree("./_output")
+            print(f"Directory /_output/ and all its contents have been removed.")
+        # Recreate the empty directory
+        os.makedirs("./_output")
+
         self.triangle_mesh = PreprocessingScreen.generate_mesh_from_pcl(self.accumulated_point_cloud)
         self.graphical_interface_image.setPixmap(PreprocessingScreen.point_cloud_to_image(self.accumulated_point_cloud))
 
