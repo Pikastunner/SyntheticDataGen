@@ -55,6 +55,10 @@ QWidget#OptionsTextSection {
     background-color: #2e2e2e; /* Darker background */
 }
 
+QMainWindow#SettingsWindow {
+    background-color: #2e2e2e; /* Darker background */
+}
+
 QWidget#PreprocessingBackgroundSection, 
 QWidget#PreprocessingGraphInterfaceSection {
     margin: 15px;

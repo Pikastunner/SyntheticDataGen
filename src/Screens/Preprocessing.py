@@ -503,7 +503,7 @@ class PreprocessingScreen(QWidget):
     ############################################################
     def view_settings_window(self):
         # Create the settings window as a new QMainWindow
-        self.settings_window = QMainWindow(self)
+        self.settings_window = QMainWindow(self, objectName="SettingsWindow")
         self.settings_window.setWindowTitle("Mesh Generation Settings")
         self.settings_window.setWindowIcon(QIcon("./src/Icons/slider_dark.svg"))
 
@@ -538,42 +538,55 @@ class PreprocessingScreen(QWidget):
 
         self.settings_window.show()
 
-    # Helper methods for adding rows
     def add_checkbox_row(self, layout, label, checked, on_change, tip=None):
         row_layout = QHBoxLayout()
         row_label = QLabel(label)
         row_label.setToolTip(tip)
+        row_label.setFixedWidth(150)  # Fixed width for all labels
         row_checkbox = QCheckBox()
         row_checkbox.setChecked(checked)
         row_checkbox.stateChanged.connect(on_change)
+
         row_layout.addWidget(row_label)
         row_layout.addWidget(row_checkbox)
         row_layout.addStretch()
+        row_layout.setAlignment(row_label, Qt.AlignVCenter)  # Vertical alignment
+        row_layout.setAlignment(row_checkbox, Qt.AlignVCenter)  # Vertical alignment
         layout.addLayout(row_layout)
 
     def add_combo_box_row(self, layout, label, items, default_item, on_change):
         row_layout = QHBoxLayout()
         row_label = QLabel(label)
+        row_label.setFixedWidth(150)  # Fixed width for all labels
         row_combo = QComboBox()
         row_combo.addItems(items)
         row_combo.setCurrentText(default_item)
         row_combo.currentTextChanged.connect(on_change)
+
         row_layout.addWidget(row_label)
         row_layout.addWidget(row_combo)
         row_layout.addStretch()
+        row_layout.setAlignment(row_label, Qt.AlignVCenter)  # Vertical alignment
+        row_layout.setAlignment(row_combo, Qt.AlignVCenter)  # Vertical alignment
         layout.addLayout(row_layout)
 
     def add_spin_box_row(self, layout, label, value, min_val, max_val, on_change, step=1, enabled=True):
         row_layout = QHBoxLayout()
         row_label = QLabel(label)
+        row_label.setFixedWidth(150)  # Fixed width for all labels
         row_spinbox = QSpinBox() if step == 1 else QDoubleSpinBox()
         row_spinbox.setValue(value)
         row_spinbox.setRange(min_val, max_val)
         row_spinbox.setSingleStep(step)
         row_spinbox.setEnabled(enabled)
+        row_spinbox.setFixedWidth(80)  # Set a fixed width for consistency
         row_spinbox.valueChanged.connect(on_change)
+
         row_layout.addWidget(row_label)
         row_layout.addWidget(row_spinbox)
+        row_layout.addStretch()
+        row_layout.setAlignment(row_label, Qt.AlignVCenter)  # Vertical alignment
+        row_layout.setAlignment(row_spinbox, Qt.AlignVCenter)  # Vertical alignment
         layout.addLayout(row_layout)
 
     # Helper methods to update settings based on controls
