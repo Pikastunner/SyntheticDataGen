@@ -2,9 +2,9 @@ import os
 import cv2
 import numpy as np
 from PyQt5.QtWidgets import (QWidget, QLineEdit, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, 
-                             QFileDialog, QMessageBox, QSizePolicy)
-from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import Qt, QThread
+                             QFileDialog, QMessageBox, QSizePolicy, QMainWindow, QCheckBox, QComboBox, QSpacerItem, QSpinBox, QDoubleSpinBox)
+from PyQt5.QtGui import QImage, QPixmap,QIcon
+from PyQt5.QtCore import Qt, QThread, QSize, QPoint, QRect
 import cv2.aruco as aruco
 from rembg import remove
 from PIL import Image
@@ -19,52 +19,14 @@ import concurrent.futures
 import time
 from scipy.spatial import Delaunay
 
-
-class o3DVisualizer(QThread):
-    def __init__(self, triangle_mesh):
-        super().__init__()
-        self.triangle_mesh = triangle_mesh
-
-    def fullscreen(self):
-        # Create the coordinate frame and display the 3D mesh in a non-blocking way
-        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        o3d.visualization.draw_geometries([self.triangle_mesh, coordinate_frame])
-
-    def capturePreview(self) -> QPixmap:
-        # Initialize Open3D visualizer
-        vis = o3d.visualization.Visualizer()
-        vis.create_window(visible=False)  # Create an invisible window
-        vis.add_geometry(self.triangle_mesh)
-
-        # Set background color to black
-        render_option = vis.get_render_option()
-        render_option.background_color = np.asarray([0.0, 0.0, 0.0])
-        
-        # Capture the image
-        vis.poll_events()
-        vis.update_renderer()
-        image = vis.capture_screen_float_buffer(True)
-        
-        # Convert to numpy array
-        image = np.asarray(image)
-        
-        # Convert the float buffer (RGB) into an 8-bit format
-        image = (image * 255).astype(np.uint8)
-        
-        # Convert to QPixmap
-        height, width, _ = image.shape
-        bytes_per_line = 3 * width
-        qimage = QImage(image.data, width, height, bytes_per_line, QImage.Format_RGB888)
-        pixmap = QPixmap.fromImage(qimage)
-        
-        vis.destroy_window()
-        
-        return pixmap
-
-
 # Preprocessing Page
 class PreprocessingScreen(QWidget):
 
+    ############################################################
+            # CALLED WHEN WE FIRST SWITCH TO SCREEN 
+            # (PUT STUFF HERE THAT DOESN'T NEED TO BE 
+            # CALLED ON IMMEDIATE STARTUP)
+    ############################################################
     def update_variables(self, rgb_filenames, depth_filenames):
         self.processed_images, self.depth_images, self.aruco_datas = self.process_images(rgb_filenames, depth_filenames)
         self.image_index = 0
@@ -82,8 +44,7 @@ class PreprocessingScreen(QWidget):
             # Append valid results to annotated_images (excluding None)
             self.annotated_images.extend([result for result in results if result is not None])
             
-            
-        ## DISPLAY THE FIRST IMAGE
+        ## DISPLAY THE FIRST IMAGE IN THE GUI
         qimage = self.numpy_to_qimage(self.annotated_images[self.image_index])
         self.background_image.setPixmap(QPixmap.fromImage(qimage))
         self.background_image.setScaledContents(True)  # Allow the pixmap to scale with the label
@@ -92,9 +53,11 @@ class PreprocessingScreen(QWidget):
         self.background_image_info.setText(f"Image #1 of {len(self.processed_images)}")
 
         ## GET POINT CLOUD
-        unrefined_cloud = self.generate_point_cloud()
-        
-        ## THIS FILE CONTAINS ALL THE OUTPUT AND CLEARS EACH TIME WE RUN
+        self.accumulated_point_cloud = self.generate_point_cloud()
+
+        print("Initial point cloud has been generated...")
+
+        ## THIS FILE CONTAINS ALL THE OUTPUT AND CLEARS EACH TIME WE RUN THE PROGRAM
         import shutil
         if os.path.exists("./_output"):
             # Remove the directory and all of its contents
@@ -103,29 +66,12 @@ class PreprocessingScreen(QWidget):
         # Recreate the empty directory
         os.makedirs("./_output")
 
-        print("Initial point cloud has been generated...")
-        print("Refining the point cloud may take several minutes...")
-        
-        # o3d.io.write_point_cloud("./_output/pcl.pcd", unrefined_cloud)
-        # from Utilities.caller import run_command
-
-        # run_command("./src/Utilities/mesh_smooth_utility ./_output/pcl.pcd ./_output/pcl.pcd")
-
-        # self.accumulated_point_cloud = o3d.io.read_point_cloud("./_output/pcl.pcd")
-        # self.accumulated_point_cloud.colors = unrefined_cloud.colors
-
-        self.accumulated_point_cloud = unrefined_cloud
-
-        # CREATE TRIANGLE MESH AND MESH PREVIEW
-        self.triangle_mesh = PreprocessingScreen.generate_mesh_from_pcl(self.accumulated_point_cloud)
-
-        self.o3d_visualizer = o3DVisualizer(self.triangle_mesh)
-        self.graphical_interface_image.setPixmap(self.o3d_visualizer.capturePreview())
-        self.graphical_interface_image.setFixedHeight(self.background_image.height())  # Match height with background image
+        ## GENERATE MESH HANDLES THINGS FROM HERE ON
+        self.generate_mesh()
 
 
     ############################################################
-            # GUI BEHAVIOUR/DISPLAY
+            # GUI BEHAVIOUR/DISPLAY AND CLASS VARS
     ############################################################
     def __init__(self, parent):
         super().__init__()
@@ -135,6 +81,8 @@ class PreprocessingScreen(QWidget):
         self.triangle_mesh = o3d.geometry.TriangleMesh()
 
         self.o3d_visualizer = None
+
+        self.settings_window = QMainWindow()
 
         # Title Section
         title_area = QWidget(objectName="PreprocessingTitleArea")
@@ -175,22 +123,41 @@ class PreprocessingScreen(QWidget):
         graphical_interface_layout = QVBoxLayout(graphical_interface_section)
 
         graphical_interface_layout.addWidget(QLabel("Graphical 3D interface of input image", objectName="PreprocessingGraphicalInterface"), 10)
+
+        # Graphical image label
         self.graphical_interface_image = QLabel(objectName="PreprocessingGraphicalInterfaceImage")
-        self.graphical_interface_image.setScaledContents(True)  # Optional: Scale to fit the label
+        self.graphical_interface_image.setScaledContents(True)  # Scale to fit the label
         self.graphical_interface_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
 
+        # Create the overlay button with icon
+        icon_button = QPushButton(objectName = "Slider")
+        icon_button.setIcon(QIcon("./src/Icons/slider_dark.svg"))  # Set the SVG icon
+        icon_button.setIconSize(QSize(15, 15))  # Set size of the icon (optional)
+        icon_button.clicked.connect(self.view_settings_window)  # Connect to the new window function
+        icon_button.setFixedSize(40,40)
+
+        # Fullscreen button
         fs_button = QPushButton("Fullscreen")
         fs_button.setFixedSize(120, 40)
         fs_button.clicked.connect(self.view_3d_interface)
 
+        # Create a horizontal layout to place buttons on the same row
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(icon_button)
+        button_layout.addWidget(fs_button)
+
+        # Create a widget to hold the buttons and image
+        button_widget = QWidget()
+        button_widget.setLayout(button_layout)
+
         center_widget_preview = QWidget()
         center_layout_preview = QVBoxLayout(center_widget_preview)
-        center_layout_preview.addWidget(QLabel("View mesh in external window"), alignment=Qt.AlignHCenter)
-        center_layout_preview.addWidget(fs_button, alignment=Qt.AlignHCenter)
+        center_layout_preview.addWidget(QLabel("\n"), alignment=Qt.AlignHCenter)
+        center_layout_preview.addWidget(button_widget, alignment=Qt.AlignHCenter)
 
         graphical_interface_layout.addWidget(self.graphical_interface_image, 86)
         graphical_interface_layout.addWidget(center_widget_preview)
-
+        
         preprocessing_area_layout.addWidget(background_section, 45)
         preprocessing_area_layout.addWidget(graphical_interface_section, 45)
 
@@ -241,7 +208,23 @@ class PreprocessingScreen(QWidget):
         main_layout.addWidget(directory_saving_area, 17)
         main_layout.addWidget(navigation_area, 10)
 
-    
+
+        ### NOTE: THESE ARE SETTINGS THAT ARE BE USED IN SETTINGS PANEL
+        self.enable_smoothing = False
+        self.reconstruction_methods = ["Alpha Shapes", "Poisson Reconstruction"]
+        self.reconstruction_method_default = "Alpha Shapes"
+
+        # These settings should only appear when the method is poisson
+        self.normal_estimation_neighbours = 30
+        self.orient_normals = False
+        # This option should appear when the above is enabled
+        self.orient_normals_neighbours = 100
+        self.poisson_octree_depth = 5
+        self.poisson_samples_per_node = 1.5
+        self.poisson_point_weight = 1.5
+        self.alpha_detail = 0.1
+
+        
     def view_3d_interface(self):
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
         o3d.visualization.draw_geometries([self.triangle_mesh, coordinate_frame])
@@ -513,41 +496,133 @@ class PreprocessingScreen(QWidget):
 
         return point_cloud
     
-
-    @staticmethod
-    def point_cloud_to_image(point_cloud, image_size=(500, 500)):
-        # Convert point cloud data to numpy arrays
-        points = np.asarray(point_cloud.points)
-        colors = np.asarray(point_cloud.colors) * 255  # Scale colors to 0-255 range if they are normalized
-
-        # Create a blank image
-        img = np.zeros((image_size[1], image_size[0], 3), dtype=np.uint8)
-        
-        # Extract x and y coordinates (z is ignored for 2D projection)
-        x_coords = points[:, 1]
-        y_coords = points[:, 2]
-
-        # Normalize x and y coordinates to fit within image dimensions
-        x_normalized = ((x_coords - x_coords.min()) / (x_coords.max() - x_coords.min()) * (image_size[0] - 1)).astype(int)
-        y_normalized = ((y_coords - y_coords.min()) / (y_coords.max() - y_coords.min()) * (image_size[1] - 1)).astype(int)
-        
-        # Populate the image with colored points
-        for x, y, color in zip(x_normalized, y_normalized, colors):
-            img[y, x] = color.astype(np.uint8)  # Set each point color
-        
-        # Convert the image to a QImage
-        height, width, channel = img.shape
-        bytes_per_line = 3 * width
-        qimage = QImage(img.data, width, height, bytes_per_line, QImage.Format_RGB888)
-        return QPixmap.fromImage(qimage)
-
-    
     ############################################################
             # STEP 3: CREATE A MESH FROM POINT CLOUD
     ############################################################
+    def view_settings_window(self):
+        # Create the settings window as a new QMainWindow
+        self.settings_window = QMainWindow(self)
+        self.settings_window.setWindowTitle("Mesh Generation Settings")
+        self.settings_window.setWindowIcon(QIcon("./src/Icons/slider_dark.svg"))
+
+        # Create a central widget for the settings window
+        central_widget = QWidget()
+        self.settings_window.setCentralWidget(central_widget)
+
+        # Main layout
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(10, 10, 10, 10)  # Add some padding
+
+        # Row for enabling/disabling smoothing
+        self.add_checkbox_row(main_layout, "MLS Smoothing <sup>ⓘ</sup>", self.enable_smoothing, self.toggle_smoothing)
+        self.add_combo_box_row(main_layout, "Reconstruction Method", self.reconstruction_methods, self.reconstruction_method_default, self.update_reconstruction_method)
+        self.add_spin_box_row(main_layout, "Normal Estimation Neighbors", self.normal_estimation_neighbours, 1, 1000, self.update_normal_estimation_neighbors)
+        self.add_checkbox_row(main_layout, "Normal Orientation", self.orient_normals, self.toggle_orient_normals)
+        self.add_spin_box_row(main_layout, "Normal Orientation Neighbors", self.orient_normals_neighbours, 1, 1000, self.update_orient_normals_neighbors)
+        self.add_spin_box_row(main_layout, "Poisson Octree Depth", self.poisson_octree_depth, 1, 10, self.update_poisson_octree_depth)
+        self.add_spin_box_row(main_layout, "Poisson Samples per Node", self.poisson_samples_per_node, 0.1, 10.0, self.update_poisson_samples_per_node, step=0.1)
+        self.add_spin_box_row(main_layout, "Poisson Point Weight", self.poisson_point_weight, 0.1, 10.0, self.update_poisson_point_weight, step=0.1)
+        self.add_spin_box_row(main_layout, "Alpha Detail", self.alpha_detail, 0.01, 5.0, self.update_alpha_detail, step=0.01)
+
+        # Regenerate button aligned to the bottom
+        main_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        button = QPushButton("Regenerate")
+        button.clicked.connect(self.generate_mesh)
+        main_layout.addWidget(button, alignment=Qt.AlignBottom)
+
+        # Set the main layout on the central widget
+        central_widget.setLayout(main_layout)
+
+        self.settings_window.show()
+
+    # Helper methods for adding rows
+    def add_checkbox_row(self, layout, label, checked, on_change):
+        row_layout = QHBoxLayout()
+        row_label = QLabel(label)
+        row_checkbox = QCheckBox()
+        row_checkbox.setChecked(checked)
+        row_checkbox.stateChanged.connect(on_change)
+        row_layout.addWidget(row_label)
+        row_layout.addWidget(row_checkbox)
+        row_layout.addStretch()
+        layout.addLayout(row_layout)
+
+    def add_combo_box_row(self, layout, label, items, default_item, on_change):
+        row_layout = QHBoxLayout()
+        row_label = QLabel(label)
+        row_combo = QComboBox()
+        row_combo.addItems(items)
+        row_combo.setCurrentText(default_item)
+        row_combo.currentTextChanged.connect(on_change)
+        row_layout.addWidget(row_label)
+        row_layout.addWidget(row_combo)
+        row_layout.addStretch()
+        layout.addLayout(row_layout)
+
+    def add_spin_box_row(self, layout, label, value, min_val, max_val, on_change, step=1, enabled=True):
+        row_layout = QHBoxLayout()
+        row_label = QLabel(label)
+        row_spinbox = QSpinBox() if step == 1 else QDoubleSpinBox()
+        row_spinbox.setValue(value)
+        row_spinbox.setRange(min_val, max_val)
+        row_spinbox.setSingleStep(step)
+        row_spinbox.setEnabled(enabled)
+        row_spinbox.valueChanged.connect(on_change)
+        row_layout.addWidget(row_label)
+        row_layout.addWidget(row_spinbox)
+        layout.addLayout(row_layout)
+
+    # Helper methods to update settings based on controls
+    def toggle_smoothing(self, state):
+        self.enable_smoothing = bool(state)
+    def toggle_orient_normals(self, state):
+        self.enable_smoothing = bool(state)
+    def update_reconstruction_method(self, method):
+        self.reconstruction_method_default = method            
+    def update_normal_estimation_neighbors(self, value):
+        self.normal_estimation_neighbours = value
+    def update_orient_normals_neighbors(self, value):
+        self.orient_normals_neighbours = value
+    def update_poisson_octree_depth(self, value):
+        self.poisson_octree_depth = value
+    def update_poisson_samples_per_node(self, value):
+        self.poisson_samples_per_node = value
+    def update_poisson_point_weight(self, value):
+        self.poisson_point_weight = value
+    def update_alpha_detail(self, value):
+        self.alpha_detail = value
+
+    
+    def generate_mesh(self):
+        print("Generating mesh")
+
+        smoothing = self.enable_smoothing
+        reconstruction_model = self.reconstruction_method_default
+        point_cloud = self.accumulated_point_cloud
+
+        ## IF SMOOTHING ENABLED CALL CPP UTILITY IN LINUX ENVIRONMENT
+        if (smoothing):
+            print("Smoothing has been enabled. Calling smoothing utility...")
+            unrefined_cloud = self.accumulated_point_cloud
+            o3d.io.write_point_cloud("./_output/pcl.pcd", unrefined_cloud)
+            from Utilities.caller import run_command
+            run_command("./src/Utilities/mesh_smooth_utility ./_output/pcl.pcd ./_output/pcl.pcd")
+            point_cloud = o3d.io.read_point_cloud("./_output/pcl.pcd")
+            point_cloud.colors = unrefined_cloud.colors
+        
+        ## RECONSTRUCT MESH BASED ON WHICHEVER METHOD YOU HAVE SPECIFIED
+        if (reconstruction_model == "Alpha Shapes"):
+            self.triangle_mesh = PreprocessingScreen.generate_mesh_with_alpha_shapes(point_cloud, self.alpha_detail)
+        if (reconstruction_model == "Poisson Reconstruction"):
+            self.triangle_mesh = PreprocessingScreen.generate_mesh_with_alpha_shapes(point_cloud)
+
+        ## VISUALIZE NEW MESH AND ENSURE CORRECT GUI SCALING
+        self.o3d_visualizer = o3DVisualizer(self.triangle_mesh)
+        self.graphical_interface_image.setPixmap(self.o3d_visualizer.capturePreview())
+        self.graphical_interface_image.setFixedHeight(self.background_image.height())
 
     @staticmethod
-    def generate_mesh_from_pcl(pcl, alpha=0.1):
+    def generate_mesh_with_alpha_shapes(pcl, alpha=0.1):
         pcl_np = np.asarray(pcl.points)
         colors_np = np.asarray(pcl.colors)  # Get colors as well
 
@@ -590,7 +665,7 @@ class PreprocessingScreen(QWidget):
 
 
     ############################################################
-            # OVERARCHING PAGE CONTROL
+            # PAGE CONTROLS
     ############################################################
         
     def go_to_back_page(self):
@@ -628,6 +703,51 @@ class PreprocessingScreen(QWidget):
         else:
             print("Already on the last page")
 
+
+
+
+
+## THIS IS A HELPER CLASS; CALLING O3D VISUALIZE BLOCKS MAIN THREAD AND THIS PUTS ON SEPERATE THREAD
+class o3DVisualizer(QThread):
+    def __init__(self, triangle_mesh):
+        super().__init__()
+        self.triangle_mesh = triangle_mesh
+
+    def fullscreen(self):
+        # Create the coordinate frame and display the 3D mesh in a non-blocking way
+        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+        o3d.visualization.draw_geometries([self.triangle_mesh, coordinate_frame])
+
+    def capturePreview(self) -> QPixmap:
+        # Initialize Open3D visualizer
+        vis = o3d.visualization.Visualizer()
+        vis.create_window(visible=False)  # Create an invisible window
+        vis.add_geometry(self.triangle_mesh)
+
+        # Set background color to black
+        render_option = vis.get_render_option()
+        render_option.background_color = np.asarray([0.0, 0.0, 0.0])
+        
+        # Capture the image
+        vis.poll_events()
+        vis.update_renderer()
+        image = vis.capture_screen_float_buffer(True)
+        
+        # Convert to numpy array
+        image = np.asarray(image)
+        
+        # Convert the float buffer (RGB) into an 8-bit format
+        image = (image * 255).astype(np.uint8)
+        
+        # Convert to QPixmap
+        height, width, _ = image.shape
+        bytes_per_line = 3 * width
+        qimage = QImage(image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(qimage)
+        
+        vis.destroy_window()
+        
+        return pixmap
 
 
 from PyQt5.QtWidgets import (QApplication)

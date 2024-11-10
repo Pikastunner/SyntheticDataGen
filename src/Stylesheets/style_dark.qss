@@ -99,6 +99,14 @@ QPushButton#LightButton {
     color: #cccccc; /* Lighter gray text */
 }
 
+QCheckBox {
+    color: white;
+}
+
+QComboBox {
+    color: white;
+    background: #3c3c3c;
+}
 
 
 
