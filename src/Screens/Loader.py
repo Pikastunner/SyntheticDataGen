@@ -64,7 +64,7 @@ class LoadingScreen(QDialog):
     def showEvent(self, event):
         # Center the loading screen over the parent window when it's shown
         if self.parent():
-            parent_rect = QApplication.desktop().screenGeometry
+            parent_rect = QApplication.desktop().screenGeometry()
             self.move(
                 parent_rect.center().x() - self.width() // 2,
                 parent_rect.center().y() - self.height() // 2
