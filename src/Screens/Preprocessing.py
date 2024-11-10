@@ -65,10 +65,20 @@ class PreprocessingScreen(QWidget):
         # self.accumulated_point_cloud = self.generate_point_cloud()
         print("Generate Point Cloud")
         # self.graphical_interface_image.setPixmap(self.point_cloud_to_image(self.accumulated_point_cloud))
+        ## GET POINT CLOUD
+        self.accumulated_point_cloud = self.generate_point_cloud()
+        # o3d.io.write_point_cloud("./pointcloud2.ply", self.accumulated_point_cloud)
+
+        import shutil
+        if os.path.exists("./_output"):
+            # Remove the directory and all of its contents
+            shutil.rmtree("./_output")
+            print(f"Directory /_output/ and all its contents have been removed.")
+        # Recreate the empty directory
+        os.makedirs("./_output")
 
         # self.triangle_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(self.accumulated_point_cloud, depth=8)[0]
 
-    
 
     ############################################################
             # GUI BEHAVIOUR/DISPLAY
@@ -182,12 +192,10 @@ class PreprocessingScreen(QWidget):
 
     
     def view_3d_interface(self):
-        # coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        # o3d.visualization.draw_geometries([self.accumulated_point_cloud, coordinate_frame])
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-        o3d.visualization.draw_geometries([self.triangle_mesh, coordinate_frame])
+        o3d.visualization.draw_geometries([self.accumulated_point_cloud, coordinate_frame])
 
-    
+        
     def select_directory(self):
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
         if directory:
@@ -510,7 +518,11 @@ class PreprocessingScreen(QWidget):
 
         mesh.compute_vertex_normals()
 
-        return mesh
+        # pcl.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.002, max_nn=1000))
+
+
+        return mesh # Temporary
+    
 
 
     ############################################################
