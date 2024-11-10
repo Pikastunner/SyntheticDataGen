@@ -93,7 +93,9 @@ QPushButton#LightButton {
     color: black;
 }
 
-
+QCheckBox {
+    color: black;
+}
 
 
 

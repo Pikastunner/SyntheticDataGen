@@ -9,3 +9,4 @@ output_scene/
 /__pycache__
 camera.cpython-310.pyc
 .pycache/
+_temp

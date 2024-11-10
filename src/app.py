@@ -31,7 +31,7 @@ class MainApp(QMainWindow):
         self.main_layout.setSpacing(0)  # Remove spacing between elements in the layout
         
         # Main widget for switching between scenes
-        self.stacked_widget = QStackedWidget()
+        self.stacked_widget = QStackedWidget(self)
         self.stacked_widget.setContentsMargins(0, 0, 0, 0) 
         self.main_layout.addWidget(self.stacked_widget)
         
@@ -88,6 +88,8 @@ class MainApp(QMainWindow):
         self.set_light(self.light)
         self.light = not self.light
 
+    def is_light(self):
+        return self.light
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

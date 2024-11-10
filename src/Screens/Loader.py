@@ -5,7 +5,7 @@ from PyQt5.QtGui import QMovie
 from Screens.Constants import WIN_WIDTH, WIN_HEIGHT
 
 class LoadingWorker(QThread):
-    progress_changed = pyqtSignal(int)
+    # progress_changed = pyqtSignal(int)
 
     def __init__(self, img_paths, depth_paths, parent=None):
         super().__init__(parent)
@@ -16,7 +16,7 @@ class LoadingWorker(QThread):
     def run(self):
         self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
         next_screen = self.parent.widget(self.parent.currentIndex())
-        next_screen.update_variables(self.img_paths, self.depth_paths, self.progress_changed)
+        next_screen.update_variables(self.img_paths, self.depth_paths)
 
 
 class LoadingScreen(QDialog):
