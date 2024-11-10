@@ -10,7 +10,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 
 from Screens.Loader import LoadingScreen, LoadingWorker
-from Screens.Constants import OUTPUT_DIR
+from Screens.Constants import K_ARUCO_PROCESS, M_ARUCO_PROCESS, K_MESH_GEN
 
 # Component 5
 class CapturedPhotoReviewScreen(QWidget):
@@ -214,11 +214,11 @@ class CapturedPhotoReviewScreen(QWidget):
     def go_to_next_page(self):
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
-            self.loading_screen = LoadingScreen(self.parent)
+            t_estimate = (M_ARUCO_PROCESS + K_MESH_GEN) * len(self.img_paths) + K_ARUCO_PROCESS
+            self.loading_screen = LoadingScreen(self.parent, t_estimate)
             self.loading_screen.show()
 
             self.loading_worker = LoadingWorker(self.img_paths, self.depth_paths, self.parent)
-            self.loading_worker.progress_changed.connect(self.loading_screen.update_progress)
             self.loading_worker.finished.connect(self.on_loading_finished)
             self.loading_worker.start()
             
@@ -226,9 +226,6 @@ class CapturedPhotoReviewScreen(QWidget):
             print("Already on the last page")
     
     def on_loading_finished(self):
-        # self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
-        # next_screen = self.parent.widget(self.parent.currentIndex())
-        # next_screen.update_variables(self.img_paths, self.depth_paths)
         self.loading_screen.close()
 
 

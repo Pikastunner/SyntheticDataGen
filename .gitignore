@@ -2,6 +2,7 @@ out/
 .venv/
 run.sh
 test.py
+test?.py
 _output/
 output_scene/
 **/__pycache__/

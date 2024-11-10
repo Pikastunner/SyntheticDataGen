@@ -1,7 +1,8 @@
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt5.QtWidgets import QProgressBar, QVBoxLayout, QWidget, QLabel, QDialog, QMainWindow, QApplication
+from PyQt5.QtGui import QMovie
 
-from Screens.Constants import KPROCESS, WIN_WIDTH, WIN_HEIGHT
+from Screens.Constants import WIN_WIDTH, WIN_HEIGHT
 
 class LoadingWorker(QThread):
     progress_changed = pyqtSignal(int)
@@ -16,32 +17,49 @@ class LoadingWorker(QThread):
         self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
         next_screen = self.parent.widget(self.parent.currentIndex())
         next_screen.update_variables(self.img_paths, self.depth_paths, self.progress_changed)
-        self.progress_changed.emit(100)
 
 
 class LoadingScreen(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, time_estimate: float = 10):
         super().__init__(parent)
+        self.setWindowTitle("Bro, I'm processing. Just chillax!")
+        self.setFixedSize(700, 650)
         
-        # Set the dialog to be modal so it stays on top of the main window
         self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowTitle("Loading...")
-
-        # Remove the window title bar for a simpler look
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
 
-        # Create and set up the progress bar
-        self.progress_bar = QProgressBar(self)
-        self.progress_bar.setRange(0, 100)
+        self.gif_label = QLabel(self)
+        self.gif_label.setFixedSize(300, 300)
+        self.gif_label.setAlignment(Qt.AlignCenter)
         
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Loading, please wait..."))
-        layout.addWidget(self.progress_bar)
-        self.setLayout(layout)
+        self.movie = QMovie("src/Icons/app_load_animation.gif")
+        self.movie.setScaledSize(self.gif_label.size())
+        self.gif_label.setMovie(self.movie)
+        
+        layout = QVBoxLayout(self)
+        layout.addStretch()
+        layout.addWidget(self.gif_label, alignment=Qt.AlignCenter)
+        layout.addStretch()
+        
+        self.countdown_label = QLabel(f"Estimated time: {round(time_estimate)} seconds", self)
+        self.countdown_label.setStyleSheet("color: black; font-size: 12pt;")
+        self.countdown_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.countdown_label)
+        
+        self.movie.start()
+        
+        self.countdown_value = round(time_estimate)
+        self.countdown_timer = QTimer(self)
+        self.countdown_timer.timeout.connect(self.update_countdown)
+        self.countdown_timer.start(1000)
 
-        # Set a fixed size for the dialog
-        self.setWindowTitle("Progress Screen")
-        self.setFixedSize(WIN_WIDTH, WIN_HEIGHT)
+    def update_countdown(self):
+        """Update the countdown text."""
+        if self.countdown_value > 0:
+            self.countdown_value -= 1
+            self.countdown_label.setText(f"Estimated time: {self.countdown_value} seconds")
+        else:
+            self.countdown_label.setText("Loading complete")
 
     def showEvent(self, event):
         # Center the loading screen over the parent window when it's shown
@@ -57,6 +75,3 @@ class LoadingScreen(QDialog):
             self.move(dialog_geometry.topLeft())
 
         super().showEvent(event)
-
-    def update_progress(self, value):
-        self.progress_bar.setValue(value)
