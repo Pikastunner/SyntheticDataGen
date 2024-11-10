@@ -4,7 +4,7 @@ import numpy as np
 from PyQt5.QtWidgets import (QWidget, QLineEdit, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, 
                              QFileDialog, QMessageBox, QSizePolicy)
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread
 import cv2.aruco as aruco
 from rembg import remove
 from PIL import Image
@@ -17,7 +17,49 @@ import open3d as o3d
 
 import concurrent.futures
 import time
-from scipy.spatial import Delaunay  # Ensure this import is included
+from scipy.spatial import Delaunay
+
+
+class o3DVisualizer(QThread):
+    def __init__(self, triangle_mesh):
+        super().__init__()
+        self.triangle_mesh = triangle_mesh
+
+    def fullscreen(self):
+        # Create the coordinate frame and display the 3D mesh in a non-blocking way
+        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+        o3d.visualization.draw_geometries([self.triangle_mesh, coordinate_frame])
+
+    def capturePreview(self) -> QPixmap:
+        # Initialize Open3D visualizer
+        vis = o3d.visualization.Visualizer()
+        vis.create_window(visible=False)  # Create an invisible window
+        vis.add_geometry(self.triangle_mesh)
+
+        # Set background color to black
+        render_option = vis.get_render_option()
+        render_option.background_color = np.asarray([0.0, 0.0, 0.0])
+        
+        # Capture the image
+        vis.poll_events()
+        vis.update_renderer()
+        image = vis.capture_screen_float_buffer(True)
+        
+        # Convert to numpy array
+        image = np.asarray(image)
+        
+        # Convert the float buffer (RGB) into an 8-bit format
+        image = (image * 255).astype(np.uint8)
+        
+        # Convert to QPixmap
+        height, width, _ = image.shape
+        bytes_per_line = 3 * width
+        qimage = QImage(image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(qimage)
+        
+        vis.destroy_window()
+        
+        return pixmap
 
 
 # Preprocessing Page
@@ -27,26 +69,18 @@ class PreprocessingScreen(QWidget):
         self.processed_images, self.depth_images, self.aruco_datas = self.process_images(rgb_filenames, depth_filenames)
         self.image_index = 0
 
-        ## PROCESS ALL IMAGES WITH ANNOTATION OF THE CENTRE OF THE ARUCO MARKERS
+        ## ANNOTATE THE IMAGES WITH THE BOARD CENTRE
         self.annotated_images = []
-        # Annotate image with board centre
-        for i, img in enumerate(self.processed_images):
-            img = self.processed_images[i]
-
-            corners = self.aruco_datas[i][0]
-            ids = self.aruco_datas[i][1]
-
-            if len(ids) < 2:
-                continue
-            objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
-
-            if objpoints is None or imgpoints is None or not objpoints.any() or not imgpoints.any():
-                continue
-            if len(objpoints) < 4 or len(imgpoints) < 4:
-                continue
-
-            _, rvec, tvec = cv2.solvePnP(objectPoints=objpoints, imagePoints=imgpoints, cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), flags=cv2.SOLVEPNP_ITERATIVE)
-            self.annotated_images.append(cv2.drawFrameAxes(img.copy(), cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), rvec=rvec, tvec=tvec , thickness=3, length=0.02))
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            tasks = [
+                (i, self.processed_images[i], self.aruco_datas[i][0], self.aruco_datas[i][1])
+                for i in range(len(self.processed_images))
+            ]
+            
+            # Execute the tasks concurrently and collect the results
+            results = executor.map(lambda args: PreprocessingScreen.annotate_image(*args), tasks)
+            # Append valid results to annotated_images (excluding None)
+            self.annotated_images.extend([result for result in results if result is not None])
             
             
         ## DISPLAY THE FIRST IMAGE
@@ -71,37 +105,24 @@ class PreprocessingScreen(QWidget):
 
         print("Initial point cloud has been generated...")
         print("Refining the point cloud may take several minutes...")
-        o3d.io.write_point_cloud("./_output/pcl.pcd", unrefined_cloud)
-        from Utilities.caller import run_command
+        
+        # o3d.io.write_point_cloud("./_output/pcl.pcd", unrefined_cloud)
+        # from Utilities.caller import run_command
 
-        run_command("./src/Utilities/mesh_smooth_utility ./_output/pcl.pcd ./_output/pcl.pcd")
+        # run_command("./src/Utilities/mesh_smooth_utility ./_output/pcl.pcd ./_output/pcl.pcd")
 
-        self.accumulated_point_cloud = o3d.io.read_point_cloud("./_output/pcl.pcd")
-        self.accumulated_point_cloud.colors = unrefined_cloud.colors
+        # self.accumulated_point_cloud = o3d.io.read_point_cloud("./_output/pcl.pcd")
+        # self.accumulated_point_cloud.colors = unrefined_cloud.colors
+
+        self.accumulated_point_cloud = unrefined_cloud
 
         # CREATE TRIANGLE MESH AND MESH PREVIEW
         self.triangle_mesh = PreprocessingScreen.generate_mesh_from_pcl(self.accumulated_point_cloud)
-        self.graphical_interface_image.setPixmap(PreprocessingScreen.point_cloud_to_image(self.accumulated_point_cloud))
 
-    @staticmethod
-    def radiate_normals_from_center(mesh):
-        # Get the vertices of the mesh
-        vertices = np.asarray(mesh.vertices)
+        self.o3d_visualizer = o3DVisualizer(self.triangle_mesh)
+        self.graphical_interface_image.setPixmap(self.o3d_visualizer.capturePreview())
+        self.graphical_interface_image.setFixedHeight(self.background_image.height())  # Match height with background image
 
-        # Compute new normals pointing outward from the origin
-        new_normals = []
-        
-        for vertex in vertices:
-            # Calculate the vector from the origin (0, 0, 0) to the vertex
-            normal = vertex  # Vector from origin to vertex
-            # Normalize the normal to ensure it is a unit vector
-            normalized_normal = normal / np.linalg.norm(normal)
-            new_normals.append(normalized_normal)
-
-        # Set the new normals
-        mesh.vertex_normals = o3d.utility.Vector3dVector(np.array(new_normals))
-        
-        return mesh
 
     ############################################################
             # GUI BEHAVIOUR/DISPLAY
@@ -112,6 +133,8 @@ class PreprocessingScreen(QWidget):
 
         self.accumulated_point_cloud = o3d.geometry.PointCloud()
         self.triangle_mesh = o3d.geometry.TriangleMesh()
+
+        self.o3d_visualizer = None
 
         # Title Section
         title_area = QWidget(objectName="PreprocessingTitleArea")
@@ -145,25 +168,30 @@ class PreprocessingScreen(QWidget):
         center_layout.addWidget(next_button, alignment=Qt.AlignHCenter)
 
         background_layout.addWidget(self.background_image, 86)
-        background_layout.addWidget(center_widget);
+        background_layout.addWidget(center_widget)
 
         # Graphical Interface Section
         graphical_interface_section = QWidget(objectName="PreprocessingGraphInterfaceSection")
         graphical_interface_layout = QVBoxLayout(graphical_interface_section)
+
         graphical_interface_layout.addWidget(QLabel("Graphical 3D interface of input image", objectName="PreprocessingGraphicalInterface"), 10)
-
         self.graphical_interface_image = QLabel(objectName="PreprocessingGraphicalInterfaceImage")
-        self.graphical_interface_image.setScaledContents(True)
-        self.graphical_interface_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.graphical_interface_image.setScaledContents(True)  # Optional: Scale to fit the label
+        self.graphical_interface_image.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Set size policy
 
-        fs_button = QPushButton("View fullscreen")
-        fs_button.setFixedSize(150, 40)
+        fs_button = QPushButton("Fullscreen")
+        fs_button.setFixedSize(120, 40)
         fs_button.clicked.connect(self.view_3d_interface)
 
-        graphical_interface_layout.addWidget(self.graphical_interface_image, 86)
-        graphical_interface_layout.addWidget(fs_button, 4, alignment=Qt.AlignHCenter)
+        center_widget_preview = QWidget()
+        center_layout_preview = QVBoxLayout(center_widget_preview)
+        center_layout_preview.addWidget(QLabel("View mesh in external window"), alignment=Qt.AlignHCenter)
+        center_layout_preview.addWidget(fs_button, alignment=Qt.AlignHCenter)
 
-        preprocessing_area_layout.addWidget(background_section, 55)
+        graphical_interface_layout.addWidget(self.graphical_interface_image, 86)
+        graphical_interface_layout.addWidget(center_widget_preview)
+
+        preprocessing_area_layout.addWidget(background_section, 45)
         preprocessing_area_layout.addWidget(graphical_interface_section, 45)
 
         # Directory Saving Section
@@ -248,6 +276,21 @@ class PreprocessingScreen(QWidget):
             # STEP 1: LOAD/PROCESS DEPTH/RGB/ARUOCO IMAGES
     ############################################################
 
+    @staticmethod
+    def annotate_image(i, img, corners, ids):
+        if len(ids) < 2:
+            return None
+        objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
+
+        if objpoints is None or imgpoints is None or not objpoints.any() or not imgpoints.any():
+            return None
+        if len(objpoints) < 4 or len(imgpoints) < 4:
+            return None
+
+        _, rvec, tvec = cv2.solvePnP(objectPoints=objpoints, imagePoints=imgpoints, cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), flags=cv2.SOLVEPNP_ITERATIVE)
+        return cv2.drawFrameAxes(img.copy(), cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), rvec=rvec, tvec=tvec, thickness=3, length=0.02)
+
+
     # Function to create a mask using rembg
     @staticmethod
     def create_mask_with_rembg(rgb_image):
@@ -324,8 +367,6 @@ class PreprocessingScreen(QWidget):
             return None, None, None
         elif len(aruco_data[1]) < 2:
             return None, None, None
-
-
         object_extracted = PreprocessingScreen.apply_mask(rgb_image, mask)
         return object_extracted, depth_image, aruco_data
 
@@ -337,7 +378,7 @@ class PreprocessingScreen(QWidget):
         depth_returned = []
         
         print("Processing images...")
-        with concurrent.futures.ProcessPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = {executor.submit(self.process_image, rgb_images[i], depth_images[i]): i 
                        for i in range(min(len(rgb_images), len(depth_images)))}
             
@@ -382,7 +423,8 @@ class PreprocessingScreen(QWidget):
                 continue
             if len(objpoints) < 4 or len(imgpoints) < 4:
                 continue
-           
+            
+            # Get matrices to transform the point cloud
             _, rvec, tvec = cv2.solvePnP(
                 objectPoints=objpoints,
                 imagePoints=imgpoints,
@@ -390,11 +432,10 @@ class PreprocessingScreen(QWidget):
                 distCoeffs=dist_coeffs_cached,
                 flags=cv2.SOLVEPNP_ITERATIVE
             )
-
             R, _ = cv2.Rodrigues(rvec)
 
             point_cloud = PreprocessingScreen.depth_to_point_cloud(rgb_image, depth_image)
-            point_cloud = PreprocessingScreen.remove_scraggly_bits(point_cloud, min_points=30)
+            point_cloud = PreprocessingScreen.remove_scraggly_bits(point_cloud)
             
             # Compute transformation matrix
             transformation_matrix = np.eye(4)
@@ -411,7 +452,6 @@ class PreprocessingScreen(QWidget):
             if i == 0:
                 accumulated_point_cloud = point_cloud
             else:
-                # TODO disabling ICP algorithm for now
                 # Apply ICP to align the current point cloud with the accumulated point cloud
                 icp_result = o3d.pipelines.registration.registration_icp(
                     point_cloud, 
@@ -425,15 +465,15 @@ class PreprocessingScreen(QWidget):
                 accumulated_point_cloud += point_cloud         
         
         # Remove any outliers that arent connected to largest point cloud
-        accumulated_point_cloud = PreprocessingScreen.remove_scraggly_bits(accumulated_point_cloud, min_points=4)       
+        accumulated_point_cloud = PreprocessingScreen.remove_scraggly_bits(accumulated_point_cloud)       
 
         return accumulated_point_cloud
     
+
     @staticmethod
-    def remove_scraggly_bits(point_cloud, eps=0.003, min_points=10):
-        labels = np.array(point_cloud.cluster_dbscan(eps=eps, min_points=min_points, print_progress=False))
+    def remove_scraggly_bits(point_cloud, eps=0.002, min_points=100):
+        labels = np.array(point_cloud.cluster_dbscan(eps=eps, min_points=min_points, print_progress=True))
         largest_cluster_label = np.bincount(labels[labels >= 0]).argmax()
-        
         return point_cloud.select_by_index(np.where(labels == largest_cluster_label)[0])
 
 
@@ -510,7 +550,14 @@ class PreprocessingScreen(QWidget):
     def generate_mesh_from_pcl(pcl, alpha=0.1):
         pcl_np = np.asarray(pcl.points)
         colors_np = np.asarray(pcl.colors)  # Get colors as well
-       
+
+        # Find the minimum z-coordinate value in the point cloud
+        min_z = np.min(pcl_np[:, 2])
+
+        # Shift all vertices so that the bottommost vertex is at z=0
+        pcl_np[:, 2] -= min_z
+
+        # Now proceed with the mesh generation as before
         tri = Delaunay(pcl_np[:, :2])  # Use only x and y for triangulation
 
         # Calculate the circumradius of each triangle
@@ -526,7 +573,7 @@ class PreprocessingScreen(QWidget):
         mask = circumradius < (1 / alpha)
         filtered_triangles = tri.simplices[mask]
 
-        # Create a mesh 
+        # Create a mesh
         mesh = o3d.geometry.TriangleMesh()
         mesh.vertices = o3d.utility.Vector3dVector(pcl_np)
         mesh.triangles = o3d.utility.Vector3iVector(filtered_triangles)
@@ -537,16 +584,9 @@ class PreprocessingScreen(QWidget):
 
         # Assign colors to the vertices of the filtered triangles
         mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
-
         mesh.compute_vertex_normals()
 
-        mesh = PreprocessingScreen.radiate_normals_from_center(mesh)
-
-        # pcl.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.002, max_nn=1000))
-
-
-        return mesh # Temporary
-    
+        return mesh  # Temporary
 
 
     ############################################################
@@ -588,3 +628,31 @@ class PreprocessingScreen(QWidget):
         else:
             print("Already on the last page")
 
+
+
+from PyQt5.QtWidgets import (QApplication)
+import sys
+if __name__ == "__main__":
+    '''
+    This is an example of how to connect the widget and the signal it emits to make other changes to other widgets.
+    '''
+
+    app = QApplication(sys.argv)
+
+    # Create a main window to embed the widget
+    main_window = QWidget()
+    main_window.setWindowTitle("Main Window with Image Processing App")
+    main_window.setGeometry(100, 100, 1000, 600)
+
+    # Create an instance of the image processing app
+    image_processing_widget = PreprocessingScreen()
+
+    # Set the layout for the main window
+    main_layout = QVBoxLayout(main_window)
+    main_layout.addWidget(image_processing_widget)
+
+    # Set layout
+    main_window.setLayout(main_layout)
+    main_window.show()
+
+    sys.exit(app.exec_())
