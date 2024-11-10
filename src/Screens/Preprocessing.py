@@ -216,12 +216,14 @@ class PreprocessingScreen(QWidget):
 
         # These settings should only appear when the method is poisson
         self.normal_estimation_neighbours = 30
+        self.normal_estimation_radius = 0.01
         self.orient_normals = False
         # This option should appear when the above is enabled
         self.orient_normals_neighbours = 100
         self.poisson_octree_depth = 5
         self.poisson_samples_per_node = 1.5
         self.poisson_point_weight = 1.5
+        # Options for alpha reconstruction
         self.alpha_detail = 0.1
 
         
@@ -514,9 +516,10 @@ class PreprocessingScreen(QWidget):
         main_layout.setContentsMargins(10, 10, 10, 10)  # Add some padding
 
         # Row for enabling/disabling smoothing
-        self.add_checkbox_row(main_layout, "MLS Smoothing <sup>ⓘ</sup>", self.enable_smoothing, self.toggle_smoothing)
+        self.add_checkbox_row(main_layout, "MLS Smoothing <sup>ⓘ</sup>", self.enable_smoothing, self.toggle_smoothing, tip="This applies Moving Least Squares smoothing through a PCL wrapper. <b>Note:</b> If you are using Microsoft Windows, WSL is required.")
         self.add_combo_box_row(main_layout, "Reconstruction Method", self.reconstruction_methods, self.reconstruction_method_default, self.update_reconstruction_method)
         self.add_spin_box_row(main_layout, "Normal Estimation Neighbors", self.normal_estimation_neighbours, 1, 1000, self.update_normal_estimation_neighbors)
+        self.add_spin_box_row(main_layout, "Normal Estimation Radius", self.normal_estimation_radius, 0, 1, self.update_normal_estimation_radius, step=0.001)
         self.add_checkbox_row(main_layout, "Normal Orientation", self.orient_normals, self.toggle_orient_normals)
         self.add_spin_box_row(main_layout, "Normal Orientation Neighbors", self.orient_normals_neighbours, 1, 1000, self.update_orient_normals_neighbors)
         self.add_spin_box_row(main_layout, "Poisson Octree Depth", self.poisson_octree_depth, 1, 10, self.update_poisson_octree_depth)
@@ -536,9 +539,10 @@ class PreprocessingScreen(QWidget):
         self.settings_window.show()
 
     # Helper methods for adding rows
-    def add_checkbox_row(self, layout, label, checked, on_change):
+    def add_checkbox_row(self, layout, label, checked, on_change, tip=None):
         row_layout = QHBoxLayout()
         row_label = QLabel(label)
+        row_label.setToolTip(tip)
         row_checkbox = QCheckBox()
         row_checkbox.setChecked(checked)
         row_checkbox.stateChanged.connect(on_change)
@@ -576,7 +580,7 @@ class PreprocessingScreen(QWidget):
     def toggle_smoothing(self, state):
         self.enable_smoothing = bool(state)
     def toggle_orient_normals(self, state):
-        self.enable_smoothing = bool(state)
+        self.orient_normals = bool(state)
     def update_reconstruction_method(self, method):
         self.reconstruction_method_default = method            
     def update_normal_estimation_neighbors(self, value):
@@ -591,11 +595,12 @@ class PreprocessingScreen(QWidget):
         self.poisson_point_weight = value
     def update_alpha_detail(self, value):
         self.alpha_detail = value
+    def update_normal_estimation_radius(self, value):
+        self.normal_estimation_radius = value
 
     
     def generate_mesh(self):
-        print("Generating mesh")
-
+        print("Generating new triangle mesh...")
         smoothing = self.enable_smoothing
         reconstruction_model = self.reconstruction_method_default
         point_cloud = self.accumulated_point_cloud
@@ -612,17 +617,42 @@ class PreprocessingScreen(QWidget):
         
         ## RECONSTRUCT MESH BASED ON WHICHEVER METHOD YOU HAVE SPECIFIED
         if (reconstruction_model == "Alpha Shapes"):
-            self.triangle_mesh = PreprocessingScreen.generate_mesh_with_alpha_shapes(point_cloud, self.alpha_detail)
+            self.triangle_mesh = self.generate_mesh_with_alpha_shapes(point_cloud)
         if (reconstruction_model == "Poisson Reconstruction"):
-            self.triangle_mesh = PreprocessingScreen.generate_mesh_with_alpha_shapes(point_cloud)
+            self.triangle_mesh = self.generate_mesh_with_poisson(point_cloud)
+
+        print("Done generating mesh...")
 
         ## VISUALIZE NEW MESH AND ENSURE CORRECT GUI SCALING
         self.o3d_visualizer = o3DVisualizer(self.triangle_mesh)
         self.graphical_interface_image.setPixmap(self.o3d_visualizer.capturePreview())
-        self.graphical_interface_image.setFixedHeight(self.background_image.height())
+        self.graphical_interface_image.setFixedHeight(self.background_image.height()) # Match background image height
 
-    @staticmethod
-    def generate_mesh_with_alpha_shapes(pcl, alpha=0.1):
+
+    def generate_mesh_with_poisson(self, pcl):
+        # Step 1: Estimate normals (if not already available)
+        pcl.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(
+            radius=self.normal_estimation_radius, max_nn=self.normal_estimation_neighbours))  # Use the attribute here
+        
+        # Step 2: Orient normals consistently if specified
+        if self.orient_normals:
+            # Using the consistent tangent plane method for normal orientation
+            pcl.orient_normals_consistent_tangent_plane(self.orient_normals_neighbours)
+
+        # Step 3: Shift all vertices so that the bottommost vertex is at z=0
+        pcl_np = np.asarray(pcl.points)  # Convert the point cloud to a numpy array
+        min_z = np.min(pcl_np[:, 2])  # Find the minimum z value
+        pcl_np[:, 2] -= min_z  # Shift all vertices so that the bottommost vertex is at z=0
+        pcl.points = o3d.utility.Vector3dVector(pcl_np)  # Set the modified points back to the point cloud
+
+        # Step 4: Perform Poisson surface reconstruction
+        poisson_mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            pcl, depth=self.poisson_octree_depth, width=0, scale=self.poisson_samples_per_node,
+            linear_fit=self.orient_normals)  # Use the parameters from the class
+
+        return poisson_mesh
+
+    def generate_mesh_with_alpha_shapes(self, pcl):
         pcl_np = np.asarray(pcl.points)
         colors_np = np.asarray(pcl.colors)  # Get colors as well
 
@@ -645,7 +675,7 @@ class PreprocessingScreen(QWidget):
         circumradius = (a * b * c) / (4 * area + 1e-10)  # Avoid division by zero
 
         # Filter triangles based on the circumradius and alpha value
-        mask = circumradius < (1 / alpha)
+        mask = circumradius < (1 / self.alpha_detail)
         filtered_triangles = tri.simplices[mask]
 
         # Create a mesh
@@ -704,10 +734,9 @@ class PreprocessingScreen(QWidget):
             print("Already on the last page")
 
 
-
-
-
-## THIS IS A HELPER CLASS; CALLING O3D VISUALIZE BLOCKS MAIN THREAD AND THIS PUTS ON SEPERATE THREAD
+########################################################################################################################
+        ## THIS IS A HELPER CLASS; CALLING O3D VISUALIZE BLOCKS MAIN THREAD AND THIS PUTS ON SEPERATE THREAD
+########################################################################################################################
 class o3DVisualizer(QThread):
     def __init__(self, triangle_mesh):
         super().__init__()
