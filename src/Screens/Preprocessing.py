@@ -22,15 +22,12 @@ from scipy.spatial import Delaunay
 # Preprocessing Page
 class PreprocessingScreen(QWidget):
 
-    def update_variables(self, rgb_filenames, depth_filenames):
-        import time
-        tStart = time.perf_counter()
     ############################################################
             # CALLED WHEN WE FIRST SWITCH TO SCREEN 
             # (PUT STUFF HERE THAT DOESN'T NEED TO BE 
             # CALLED ON IMMEDIATE STARTUP)
     ############################################################
-    def update_variables(self, rgb_filenames, depth_filenames):
+    def update_variables(self, rgb_filenames, depth_filenames):    
         self.processed_images, self.depth_images, self.aruco_datas = self.process_images(rgb_filenames, depth_filenames)
         self.image_index = 0
 
@@ -89,9 +86,6 @@ class PreprocessingScreen(QWidget):
         # Recreate the empty directory
         os.makedirs("./_output")
 
-
-        self.triangle_mesh = PreprocessingScreen.generate_mesh_from_pcl(self.accumulated_point_cloud)
-        self.graphical_interface_image.setPixmap(PreprocessingScreen.point_cloud_to_image(self.accumulated_point_cloud))
         ## GENERATE MESH HANDLES THINGS FROM HERE ON
         self.generate_mesh()
 
