@@ -205,20 +205,21 @@ class CapturedPhotoReviewScreen(QWidget):
 
 
     def go_to_back_page(self):
-        current_index = self.parent.currentIndex()
+        current_index = self.parent.stacked_widget.currentIndex()
         if current_index > 0:
-            self.parent.setCurrentIndex(current_index - 1) 
+            self.parent.stacked_widget.setCurrentIndex(current_index - 1) 
         else:
             print("Already on the first page")
 
     def go_to_next_page(self):
-        current_index = self.parent.currentIndex()
-        if current_index < self.parent.count() - 1:
+        current_index = self.parent.stacked_widget.currentIndex()
+        if current_index < self.parent.stacked_widget.count() - 1:
             t_estimate = (M_ARUCO_PROCESS + K_MESH_GEN) * len(self.img_paths) + K_ARUCO_PROCESS
             self.loading_screen = LoadingScreen(self.parent, t_estimate)
             self.loading_screen.show()
 
-            self.loading_worker = LoadingWorker(self.img_paths, self.depth_paths, self.parent)
+            self.loading_worker = LoadingWorker(
+                self.img_paths, self.depth_paths, self.parent.stacked_widget)
             self.loading_worker.finished.connect(self.on_loading_finished)
             self.loading_worker.start()
             

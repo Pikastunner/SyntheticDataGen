@@ -40,7 +40,7 @@ class MainApp(QMainWindow):
         self.stacked_widget.addWidget(OptionsScreen(self.stacked_widget))
         self.stacked_widget.addWidget(PreviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(UploadScreen(self.stacked_widget))
-        self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self.stacked_widget))
+        self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self))
         self.stacked_widget.addWidget(PreprocessingScreen(self.stacked_widget))
         self.stacked_widget.addWidget(FinishingScreen(self.stacked_widget))
         
@@ -98,6 +98,7 @@ if __name__ == '__main__':
         app.setStyleSheet(fh.read())
 
     main_app = MainApp()
+    main_app.stacked_widget.setCurrentIndex(3)
     # N = 8
     # topath = lambda f: f"C:/Users/Owen/OneDrive - UNSW/UNSW - 4th Year Courses/COMP3900/capstone-project-2024-t3-3900-W15A_CELERY/input_images_3/{f}"
     # rgb = [topath(f"rgb_image_{i}") for i in range(N)]

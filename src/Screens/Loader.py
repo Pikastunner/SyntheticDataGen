@@ -20,11 +20,16 @@ class LoadingWorker(QThread):
 
 
 class LoadingScreen(QDialog):
-    def __init__(self, parent=None, time_estimate: float = 10):
+    def __init__(self, parent: QMainWindow | None = None, time_estimate: float = 10):
         super().__init__(parent)
         self.setWindowTitle("Bro, I'm processing. Just chillax!")
         self.setFixedSize(700, 650)
+        self.setStyleSheet("border-radius: 20px;")
         
+        is_light = parent.is_light() if parent else True
+
+        gPath = f'src/Icons/app_load_animation{"" if is_light else "_dark"}.gif'
+
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
 
@@ -32,7 +37,8 @@ class LoadingScreen(QDialog):
         self.gif_label.setFixedSize(300, 300)
         self.gif_label.setAlignment(Qt.AlignCenter)
         
-        self.movie = QMovie("src/Icons/app_load_animation.gif")
+        # self.movie = QMovie("src/Icons/app_load_animation.gif")
+        self.movie = QMovie(gPath)
         self.movie.setScaledSize(self.gif_label.size())
         self.gif_label.setMovie(self.movie)
         
@@ -42,7 +48,8 @@ class LoadingScreen(QDialog):
         layout.addStretch()
         
         self.countdown_label = QLabel(f"Estimated time: {round(time_estimate)} seconds", self)
-        self.countdown_label.setStyleSheet("color: black; font-size: 12pt;")
+        colour = "black" if is_light else "white"
+        self.countdown_label.setStyleSheet(f"color: {colour}; font-size: 12pt;")
         self.countdown_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.countdown_label)
         
@@ -64,7 +71,7 @@ class LoadingScreen(QDialog):
     def showEvent(self, event):
         # Center the loading screen over the parent window when it's shown
         if self.parent():
-            parent_rect = QApplication.desktop().screenGeometry()
+            parent_rect = self.parent().geometry()
             self.move(
                 parent_rect.center().x() - self.width() // 2,
                 parent_rect.center().y() - self.height() // 2
