@@ -248,13 +248,11 @@ class PreprocessingScreen(QWidget):
 
         # These settings should only appear when the method is poisson
         self.normal_estimation_neighbours = 30
-        self.normal_estimation_radius = 0.01
-        self.orient_normals = False
+        self.normal_estimation_radius = 0.05
         # This option should appear when the above is enabled
-        self.orient_normals_neighbours = 100
-        self.poisson_octree_depth = 5
-        self.poisson_samples_per_node = 1.5
-        self.poisson_point_weight = 1.5
+        self.poisson_density_filter = 15
+        self.poisson_depth = 11
+
         # Options for alpha reconstruction
         self.alpha_detail = 0.1
 
@@ -555,11 +553,8 @@ class PreprocessingScreen(QWidget):
         self.add_combo_box_row(main_layout, "Reconstruction Method", self.reconstruction_methods, self.reconstruction_method_default, self.update_reconstruction_method)
         self.add_spin_box_row(main_layout, "Normal Estimation Neighbors", self.normal_estimation_neighbours, 1, 1000, self.update_normal_estimation_neighbors)
         self.add_spin_box_row(main_layout, "Normal Estimation Radius", self.normal_estimation_radius, 0, 1, self.update_normal_estimation_radius, step=0.001)
-        self.add_checkbox_row(main_layout, "Normal Orientation", self.orient_normals, self.toggle_orient_normals)
-        self.add_spin_box_row(main_layout, "Normal Orientation Neighbors", self.orient_normals_neighbours, 1, 1000, self.update_orient_normals_neighbors)
-        self.add_spin_box_row(main_layout, "Poisson Octree Depth", self.poisson_octree_depth, 1, 10, self.update_poisson_octree_depth)
-        self.add_spin_box_row(main_layout, "Poisson Samples per Node", self.poisson_samples_per_node, 0.1, 10.0, self.update_poisson_samples_per_node, step=0.1)
-        self.add_spin_box_row(main_layout, "Poisson Point Weight", self.poisson_point_weight, 0.1, 10.0, self.update_poisson_point_weight, step=0.1)
+        self.add_spin_box_row(main_layout, "Poisson Depth", self.poisson_depth, 1, 100, self.update_poisson_depth, step=1)
+        self.add_spin_box_row(main_layout, "Poisson Density Filter", self.poisson_density_filter, 1, 100, self.update_poisson_density_filter, step=0.5)
         self.add_spin_box_row(main_layout, "Alpha Detail", self.alpha_detail, 0.01, 5.0, self.update_alpha_detail, step=0.01)
 
         # Regenerate button aligned to the bottom
@@ -627,20 +622,14 @@ class PreprocessingScreen(QWidget):
     # Helper methods to update settings based on controls
     def toggle_smoothing(self, state):
         self.enable_smoothing = bool(state)
-    def toggle_orient_normals(self, state):
-        self.orient_normals = bool(state)
     def update_reconstruction_method(self, method):
         self.reconstruction_method_default = method            
     def update_normal_estimation_neighbors(self, value):
         self.normal_estimation_neighbours = value
-    def update_orient_normals_neighbors(self, value):
-        self.orient_normals_neighbours = value
-    def update_poisson_octree_depth(self, value):
-        self.poisson_octree_depth = value
-    def update_poisson_samples_per_node(self, value):
-        self.poisson_samples_per_node = value
-    def update_poisson_point_weight(self, value):
-        self.poisson_point_weight = value
+    def update_poisson_depth(self, value):
+        self.poisson_depth = value
+    def update_poisson_density_filter(self, value):
+        self.poisson_density_filter = value
     def update_alpha_detail(self, value):
         self.alpha_detail = value
     def update_normal_estimation_radius(self, value):
@@ -772,12 +761,12 @@ class PreprocessingScreen(QWidget):
         smoothed_pcd = PreprocessingScreen.mls_smooth_parallel(downsampled_pcd, radius=0.017, n_neighbors=120, n_jobs=-1)
         smoothed_pcd.colors = downsampled_pcd.colors
 
-        self.estimate_normals_neighborhood_reconstruction(smoothed_pcd, radius=0.05)
+        self.estimate_normals_neighborhood_reconstruction(smoothed_pcd, radius=self.normal_estimation_radius)
 
         # Create the Poisson surface reconstruction and filter out bottom 5% density areas
-        poisson_mesh, poisson_densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(smoothed_pcd, depth=11)
+        poisson_mesh, poisson_densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(smoothed_pcd, depth=self.poisson_depth)
         densities = np.asarray(poisson_densities)
-        threshold = np.percentile(densities, 5)
+        threshold = np.percentile(densities, self.poisson_density_filter)
         triangles_to_keep = densities > threshold
         filtered_mesh = poisson_mesh.select_by_index(np.where(triangles_to_keep)[0])
 
