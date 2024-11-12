@@ -28,17 +28,17 @@ class LoadingWorkerFinishing(QThread):
 
     finished_f_signal = pyqtSignal(object, str)
 
-    def __init__(self, triangle_mesh, dir_input: str, next_screen, parent=None):
+    def __init__(self, num_images, directory_input: str, next_screen, parent=None):
         super().__init__(parent)
-        self.triangle_mesh = triangle_mesh
-        self.dir_input = dir_input
+        self.num_images = num_images
+        self.dir_input = directory_input
         self.parent = parent
         self.next_screen = next_screen
 
     def run(self):
-        self.msleep(15000)
-        self.next_screen.update_variables(self.triangle_mesh, self.dir_input)
-        self.finished_f_signal.emit(self.triangle_mesh, self.dir_input)
+        # self.msleep(15000)
+        self.next_screen.update_variables(self.num_images, self.dir_input)
+        self.finished_f_signal.emit()
 
 
 class LoadingScreen(QDialog):
@@ -96,7 +96,7 @@ class LoadingScreen(QDialog):
         else:
             if self.countdown_value == 0:
                 self.countdown_label.setText(f"Fun Fact: {random.choice(self.random_facts)}")
-            elif self.countdown_value == -4:
+            elif self.countdown_value == -6:
                 self.countdown_value = 1
 
     def showEvent(self, event):

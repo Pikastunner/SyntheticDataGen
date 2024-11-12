@@ -15,6 +15,7 @@ class WelcomeScreen(QWidget):
 
         # Create the content area
         content_area = QWidget()
+        content_area.setObjectName("ContentArea")
         layout = QVBoxLayout()
 
         # Create the text area in the content area
