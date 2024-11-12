@@ -15,7 +15,7 @@ class LoadingWorkerPreprocessing(QThread):
         self.parent = parent
 
     def run(self):
-        self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
+        # self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
         next_screen = self.parent.widget(self.parent.currentIndex())
         next_screen.update_variables(self.img_paths, self.depth_paths)
 
@@ -29,7 +29,7 @@ class LoadingWorkerFinishing(QThread):
 
     def run(self):
         # self.msleep(15000)
-        self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
+        # self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
         next_screen = self.parent.widget(self.parent.currentIndex())
         next_screen.update_variables(self.triangle_mesh, self.dir_input)
 

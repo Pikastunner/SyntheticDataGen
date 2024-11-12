@@ -212,14 +212,16 @@ class CapturedPhotoReviewScreen(QWidget):
             print("Already on the first page")
 
     def go_to_next_page(self):
-        current_index = self.parent.stacked_widget.currentIndex()
-        if current_index < self.parent.stacked_widget.count() - 1:
+        par = self.parent.stacked_widget
+        current_index = par.currentIndex()
+        if current_index < par.count() - 1:
             t_estimate = (M_ARUCO_PROCESS + K_MESH_GEN) * len(self.img_paths) + K_ARUCO_PROCESS
             self.loading_screen = LoadingScreen(self.parent, t_estimate)
             self.loading_screen.show()
 
+            par.setCurrentIndex(par.currentIndex() + 1)
             self.loading_worker = LoadingWorkerPreprocessing(
-                self.img_paths, self.depth_paths, self.parent.stacked_widget
+                self.img_paths, self.depth_paths, par
             )
             self.loading_worker.finished.connect(self.on_loading_finished)
             self.loading_worker.start()

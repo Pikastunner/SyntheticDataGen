@@ -772,9 +772,9 @@ class PreprocessingScreen(QWidget):
             t_estimate = 50   # 50 seconds
             self.loading_screen = LoadingScreen(self.parent, t_estimate)
             self.loading_screen.show()
-
+            par.setCurrentIndex(par.currentIndex() + 1)
             self.loading_worker = LoadingWorkerFinishing(
-                self.triangle_mesh, self.directory_input.text(), self.parent.stacked_widget
+                self.triangle_mesh, self.directory_input.text(), par
             )
             self.loading_worker.finished.connect(self.loading_screen.close)
             self.loading_worker.start()
