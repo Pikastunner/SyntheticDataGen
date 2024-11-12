@@ -457,7 +457,7 @@ class PreprocessingScreen(QWidget):
     
 
     @staticmethod
-    def remove_scraggly_bits(point_cloud, eps=0.002, min_points=100):
+    def remove_scraggly_bits(point_cloud, eps=0.003, min_points=100):
         labels = np.array(point_cloud.cluster_dbscan(eps=eps, min_points=min_points, print_progress=True))
         largest_cluster_label = np.bincount(labels[labels >= 0]).argmax()
         return point_cloud.select_by_index(np.where(labels == largest_cluster_label)[0])
