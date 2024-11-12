@@ -74,7 +74,7 @@ class PreprocessingScreen(QWidget):
         self.background_image_info.setText(f"Image #1 of {len(self.processed_images)}")
 
         ## GET POINT CLOUD
-        self.accumulated_point_cloud = self.generate_point_cloud()
+        # self.accumulated_point_cloud = self.generate_point_cloud()
 
         print("Initial point cloud has been generated...")
 
@@ -88,7 +88,7 @@ class PreprocessingScreen(QWidget):
         os.makedirs("./_output")
 
         ## GENERATE MESH HANDLES THINGS FROM HERE ON
-        self.generate_mesh()
+        # self.generate_mesh()
 
     ############################################################
             # GUI BEHAVIOUR/DISPLAY AND CLASS VARS
@@ -773,14 +773,19 @@ class PreprocessingScreen(QWidget):
             self.loading_screen = LoadingScreen(self.parent, t_estimate)
             self.loading_screen.show()
             par.setCurrentIndex(par.currentIndex() + 1)
+            self.next_screen = par.widget(par.currentIndex())
             self.loading_worker = LoadingWorkerFinishing(
-                self.triangle_mesh, self.directory_input.text(), par
+                self.triangle_mesh, self.directory_input.text(), self.next_screen, par
             )
-            self.loading_worker.finished.connect(self.loading_screen.close)
+            self.loading_worker.finished_f_signal.connect(self.on_loading_finished)
             self.loading_worker.start()
         else:
             print("Already on the last page")
 
+    def on_loading_finished(self, triangle_mesh, dir_input):
+        # self.next_screen.update_variables(triangle_mesh, dir_input)
+        self.next_screen.setup_gui()
+        self.loading_screen.close()
 
 ########################################################################################################################
         ## THIS IS A HELPER CLASS; CALLING O3D VISUALIZE BLOCKS MAIN THREAD AND THIS PUTS ON SEPERATE THREAD

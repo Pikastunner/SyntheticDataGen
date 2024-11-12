@@ -8,6 +8,9 @@ import json
 import random
 
 class LoadingWorkerPreprocessing(QThread):
+
+    finished_p_signal = pyqtSignal(object, object)
+
     def __init__(self, img_paths, depth_paths, parent=None):
         super().__init__(parent)
         self.img_paths = img_paths
@@ -18,20 +21,24 @@ class LoadingWorkerPreprocessing(QThread):
         # self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
         next_screen = self.parent.widget(self.parent.currentIndex())
         next_screen.update_variables(self.img_paths, self.depth_paths)
+        self.finished_p_signal.emit(self.img_paths, self.depth_paths)
 
 
 class LoadingWorkerFinishing(QThread):
-    def __init__(self, triangle_mesh, dir_input: str, parent=None):
+
+    finished_f_signal = pyqtSignal(object, str)
+
+    def __init__(self, triangle_mesh, dir_input: str, next_screen, parent=None):
         super().__init__(parent)
         self.triangle_mesh = triangle_mesh
         self.dir_input = dir_input
         self.parent = parent
+        self.next_screen = next_screen
 
     def run(self):
-        # self.msleep(15000)
-        # self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
-        next_screen = self.parent.widget(self.parent.currentIndex())
-        next_screen.update_variables(self.triangle_mesh, self.dir_input)
+        self.msleep(15000)
+        self.next_screen.update_variables(self.triangle_mesh, self.dir_input)
+        self.finished_f_signal.emit(self.triangle_mesh, self.dir_input)
 
 
 class LoadingScreen(QDialog):

@@ -24,7 +24,7 @@ class FinishingScreen(QWidget):
         FinishingScreen.convert_mesh_to_usd(self.mesh, usd_file_path=self.output_path+"/mesh_usd.usda")
         FinishingScreen.generate_images()
 
-        self.setup_gui()
+        # self.setup_gui()
 
 
     @staticmethod
