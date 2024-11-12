@@ -54,9 +54,10 @@ class Configuration(QWidget):
         num_images_input_section.setObjectName("NumberSpecifySection")
 
         self.num_images_input = QSpinBox(objectName="NumberImagesInput")
-        self.num_images_input.setRange(1, 1000)  # Set range as needed
+        self.num_images_input.setRange(1, 2147483647)  # 2^31 - 1, a common "maximum" value for practical purposes
         self.num_images_input.setValue(10)  # Default value
         self.num_images_input.setFixedSize(100, 25)
+        self.num_images_input.valueChanged.connect(self.change_size_estimate)
 
         num_images_layout = QHBoxLayout()
         num_images_caption = QLabel("Number of Images:")
@@ -66,6 +67,9 @@ class Configuration(QWidget):
         num_images_layout.addWidget(QWidget(), 50)
 
         num_images_input_section.setLayout(num_images_layout)
+
+        self.size_estimate_text = QLabel("", objectName="Label2")
+        self.change_size_estimate()
 
         text_section = QWidget()
         text_layout = QVBoxLayout()
@@ -78,6 +82,7 @@ class Configuration(QWidget):
         text_layout.addWidget(num_images_title)
         text_layout.addWidget(num_images_description)
         text_layout.addWidget(num_images_input_section)
+        text_layout.addWidget(self.size_estimate_text)
 
         text_section.setLayout(text_layout)
 
@@ -167,3 +172,22 @@ class Configuration(QWidget):
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
         if directory:
             self.directory_input.setText(directory)
+
+    def image_size_estimate(self):
+        # Estimated PNG Size ≈ Width × Height × Bytes Per Pixel × Number of Images / 1000 (to convert to KB)
+        uncompressed_formula = 640 * 480 * 3 * self.num_images_input.value() / 1000  # Base estimate in KB
+        return [int(uncompressed_formula * 0.5), int(uncompressed_formula * 0.7)]  # Return as KB with compression factors
+
+    def change_size_estimate(self):
+        def format_size(size_in_kb):
+            """Convert size in KB to an appropriate size unit (KB, MB, GB)."""
+            if size_in_kb < 1024:
+                return f"{size_in_kb} KB"
+            elif size_in_kb < 1024**2:
+                return f"{size_in_kb / 1024:.2f} MB"
+            else:
+                return f"{size_in_kb / 1024**2:.2f} GB"
+        size_estimate = self.image_size_estimate()
+        size_text_min = format_size(size_estimate[0])
+        size_text_max = format_size(size_estimate[1])
+        self.size_estimate_text.setText(f"Estimated size ≈ {size_text_min} - {size_text_max}")

@@ -14,6 +14,9 @@ import numpy as np
 import json
 
 
+from plyer.utils import platform
+from plyer import notification
+
 # Preprocessing Page
 class FinishingScreen(QWidget):
 
@@ -27,6 +30,13 @@ class FinishingScreen(QWidget):
 
         FinishingScreen.convert_mesh_to_usd(self.mesh, usd_file_path=self.output_path+"/mesh_usd.usda")
         self.generate_images()
+
+        # self.setup_gui()
+        notification.notify(
+            title='Rendering Finished',
+            message='Open the application to view your images...',
+            app_name='SyntheticDataGen',
+        )
 
         # self.setup_gui()
 
