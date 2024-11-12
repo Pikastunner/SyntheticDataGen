@@ -13,6 +13,9 @@ from pxr import Usd, UsdGeom, Gf, Vt, Sdf, UsdShade
 import numpy as np
 
 
+from plyer.utils import platform
+from plyer import notification
+
 # Preprocessing Page
 class FinishingScreen(QWidget):
 
@@ -23,6 +26,12 @@ class FinishingScreen(QWidget):
 
         FinishingScreen.convert_mesh_to_usd(self.mesh)
         self.generate_images()
+
+        notification.notify(
+            title='Rendering Finished',
+            message='Open the application to view your images...',
+            app_name='SyntheticDataGen',
+        )
 
         self.setup_gui()
 

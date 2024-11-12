@@ -30,3 +30,4 @@ scipy==1.14.1
 usd_core
 joblib
 scikit-learn
+plyer
