@@ -19,8 +19,8 @@ import concurrent.futures
 import time
 from scipy.spatial import Delaunay
 
-# from sklearn.neighbors import NearestNeighbors
-# from joblib import Parallel, delayed
+from sklearn.neighbors import NearestNeighbors
+from joblib import Parallel, delayed
 
 # Preprocessing Page
 class PreprocessingScreen(QWidget):
