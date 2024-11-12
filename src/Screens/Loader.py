@@ -26,7 +26,7 @@ class LoadingWorkerPreprocessing(QThread):
 
 class LoadingWorkerFinishing(QThread):
 
-    finished_f_signal = pyqtSignal(object, str)
+    finished_f_signal = pyqtSignal(int, str)
 
     def __init__(self, num_images, directory_input: str, next_screen, parent=None):
         super().__init__(parent)
@@ -38,7 +38,7 @@ class LoadingWorkerFinishing(QThread):
     def run(self):
         # self.msleep(15000)
         self.next_screen.update_variables(self.num_images, self.dir_input)
-        self.finished_f_signal.emit()
+        self.finished_f_signal.emit(self.num_images, self.dir_input)
 
 
 class LoadingScreen(QDialog):
