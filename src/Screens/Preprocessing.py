@@ -74,7 +74,7 @@ class PreprocessingScreen(QWidget):
         self.background_image_info.setText(f"Image #1 of {len(self.processed_images)}")
 
         ## GET POINT CLOUD
-        # self.accumulated_point_cloud = self.generate_point_cloud()
+        self.accumulated_point_cloud = self.generate_point_cloud()
 
         print("Initial point cloud has been generated...")
 
@@ -88,7 +88,7 @@ class PreprocessingScreen(QWidget):
         os.makedirs("./_output")
 
         ## GENERATE MESH HANDLES THINGS FROM HERE ON
-        # self.generate_mesh()
+        self.generate_mesh()
 
     ############################################################
             # GUI BEHAVIOUR/DISPLAY AND CLASS VARS

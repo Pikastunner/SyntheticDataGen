@@ -231,9 +231,6 @@ class CapturedPhotoReviewScreen(QWidget):
             print("Already on the last page")
     
     def on_loading_finished(self, img_paths, depth_paths):
-        # par = self.parent.stacked_widget
-        # next_screen = par.widget(par.currentIndex())
-        # next_screen.update_variables(self.img_paths, self.depth_paths)
         self.loading_screen.close()
 
 
