@@ -7,6 +7,8 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt
 import re
 
+from Screens.Constants import OUTPUT_PATH
+from pxr import Usd, UsdGeom, Vt, Gf
 from pxr import Usd, UsdGeom, Gf, Vt, Sdf, UsdShade
 import numpy as np
 import json

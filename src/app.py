@@ -11,13 +11,14 @@ from Screens.Preprocessing import PreprocessingScreen
 from Screens.Upload import UploadScreen
 from Screens.Welcome import WelcomeScreen
 from Screens.Configuration import Configuration
+from Screens.Constants import WIN_WIDTH, WIN_HEIGHT
 
 # Main Application
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Synthetic Data Generator")
-        self.setFixedSize(700, 650)
+        self.setFixedSize(WIN_WIDTH, WIN_HEIGHT)
         self.setWindowIcon(QIcon("./src/Icons/app_icon.svg")) 
 
         
@@ -40,7 +41,7 @@ class MainApp(QMainWindow):
         self.stacked_widget.addWidget(OptionsScreen(self.stacked_widget))
         self.stacked_widget.addWidget(PreviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(UploadScreen(self.stacked_widget))
-        self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self.stacked_widget))
+        self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self))
         self.stacked_widget.addWidget(PreprocessingScreen(self.stacked_widget))
         self.stacked_widget.addWidget(Configuration(self.stacked_widget))
         self.stacked_widget.addWidget(FinishingScreen(self.stacked_widget))
@@ -99,5 +100,13 @@ if __name__ == '__main__':
         app.setStyleSheet(fh.read())
 
     main_app = MainApp()
+    # main_app.stacked_widget.setCurrentIndex(3)
+    # N = 8
+    # topath = lambda f: f"C:/Users/Owen/OneDrive - UNSW/UNSW - 4th Year Courses/COMP3900/capstone-project-2024-t3-3900-W15A_CELERY/input_images_3/{f}"
+    # rgb = [topath(f"rgb_image_{i}") for i in range(N)]
+    # dep = [topath(f"depth_image_{i}") for i in range(N)]
+    # main_app.stacked_widget.setCurrentIndex(4)
+    # next_screen = main_app.stacked_widget.widget(4)
+    # next_screen.update_variables(rgb, dep)
     main_app.show()
     sys.exit(app.exec_())

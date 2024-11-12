@@ -8,17 +8,15 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
 import json
 
-ICON = "src/Settings/setting.svg"
-FILE = "src/Settings/.settings.json"
-OUT = ".out/"
-OUTPUT_PATH = "input_images"
+from Screens.Constants import OUTPUT_PATH, OUT, SETTINGS_FILE, SETTINGS_ICON
+
 
 class SettingsWindow(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
 
-        if os.path.exists(FILE):
-            with open(FILE, "r") as f:
+        if os.path.exists(SETTINGS_FILE):
+            with open(SETTINGS_FILE, "r") as f:
                 self.settings_dict = json.load(f)
         else:
             self.settings_dict = {
@@ -56,7 +54,7 @@ class SettingsWindow(QDialog):
 
 def create_settings_button(parent):
     settings_button = QPushButton(parent)
-    settings_icon = QIcon(ICON)
+    settings_icon = QIcon(SETTINGS_ICON)
     settings_button.setIcon(settings_icon)
     settings_button.setIconSize(settings_button.sizeHint())
     settings_button.setFixedSize(40, 40)
