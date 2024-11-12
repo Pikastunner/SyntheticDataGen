@@ -29,16 +29,10 @@ import omni.replicator.core as rep
 import sys
 
 # Parameters #
-# OUTPUT_DIR = os.path.abspath("./_output/training_data")
-MODEL_PATH = os.path.abspath("./_output/mesh_usd.usda")
-
-if len(sys.argv) < 2:
-    print("Not enough arguments to start subprocess")
-
+MODEL_PATH = os.path.abspath("./_output/mesh_usd.usda") # This doesn't change because i made it that way
 OUTPUT_DIR = os.path.abspath(sys.argv[1] + "/coco_data/")
-print(f"Coco dta location at {OUTPUT_DIR}")
 
-# Layer's Definition #
+# Perform replicator functions on a new layer
 with rep.new_layer():
     camera = rep.create.camera(
             position=(1,1,1),
@@ -51,7 +45,7 @@ with rep.new_layer():
         intensity=1000,
     )
 
-    object = rep.get.prim_at_path(path="/GeneratedMesh")   # do not change or i will touch yo[u ]
+    object = rep.get.prim_at_path(path="/GeneratedMesh")   # do not change
     rep.modify.semantics([("class", "generatedobj")], object)
     
     render_product = rep.create.render_product(camera, (640, 480))            

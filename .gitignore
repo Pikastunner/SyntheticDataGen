@@ -17,4 +17,4 @@ _output_[0-9]*/
 run.sh
 test.py
 \.pyc$
-src/__pycache__/camera.cpython-310.pyc
+./src/__pycache__/camera.cpython-310.pyc
