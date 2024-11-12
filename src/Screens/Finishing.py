@@ -25,16 +25,6 @@ class FinishingScreen(QWidget):
     def update_variables(self, num_images, output_path):
         self.num_images = num_images
         self.output_path = output_path
-        data = {
-            "num_images": self.num_images
-        }
-        
-        try:
-            with open(f"{self.output_path}/config.json", "w") as json_file:
-                json.dump(data, json_file, indent=4)
-            print("num_images written to JSON file successfully.")
-        except IOError as e:
-            print(f"Failed to write num_images to JSON file: {e}")
 
         FinishingScreen.convert_mesh_to_usd(self.mesh, usd_file_path=self.output_path+"/mesh_usd.usda")
         self.generate_images()
