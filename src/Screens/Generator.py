@@ -32,6 +32,8 @@ import sys
 MODEL_PATH = os.path.abspath("./_output/mesh_usd.usda") # This doesn't change because i made it that way
 OUTPUT_DIR = os.path.abspath(sys.argv[1] + "/coco_data/")
 
+NUM_IMAGES = int(sys.argv[2])
+
 
 # Perform replicator functions on a new layer
 with rep.new_layer():
@@ -55,7 +57,7 @@ with rep.new_layer():
     rep.modify.semantics([("class", "generatedobj")], object)
     
     render_product = rep.create.render_product(camera, (640, 480))            
-    with rep.trigger.on_frame(max_execs=10, rt_subframes=2):    # Controls the amount of executions (images) that are created
+    with rep.trigger.on_frame(max_execs=NUM_IMAGES, rt_subframes=2):    # Controls the amount of executions (images) that are created
         with object:
             rep.modify.pose(
                 position=(0, 0, 0),

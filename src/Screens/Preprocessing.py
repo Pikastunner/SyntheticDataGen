@@ -113,6 +113,7 @@ class PreprocessingScreen(QWidget):
         title_area = QWidget(objectName="PreprocessingTitleArea")
         title_layout = QVBoxLayout(title_area)
         title_layout.addWidget(QLabel("Preprocessing", objectName="PreprocessingLabel"))
+        title_layout.addWidget(QLabel("Background Removal & 3D Interface Generation", objectName="Label2"))
 
         # Preprocessing Results Section
         preprocessing_results_area = QWidget(objectName="PreprocessingResultsArea")
@@ -122,6 +123,8 @@ class PreprocessingScreen(QWidget):
 
         # Background Section
         background_section = QWidget(objectName="PreprocessingBackgroundSection")
+        # background_section.setContentsMargins(15, 15, 15, 15)    
+        background_section.setStyleSheet("margin-top: 15px; margin-left: 15px; margin-right: 7.5px;")
         background_layout = QVBoxLayout(background_section)
         background_layout.addWidget(QLabel("Review removed background", objectName="PreprocessingTitle"), 10)
 
@@ -132,19 +135,21 @@ class PreprocessingScreen(QWidget):
         self.background_image_info.setAlignment(Qt.AlignCenter)
 
         next_button = QPushButton("Next")
-        next_button.setFixedSize(120, 40)
+        next_button.setFixedSize(110, 45)
         next_button.clicked.connect(self.move_to_next)
 
         center_widget = QWidget()
+        # center_widget.setStyleSheet("background-color: green")
         center_layout = QVBoxLayout(center_widget)
         center_layout.addWidget(self.background_image_info, alignment=Qt.AlignHCenter)
         center_layout.addWidget(next_button, alignment=Qt.AlignHCenter)
 
-        background_layout.addWidget(self.background_image, 86)
+        background_layout.addWidget(self.background_image, 90)
         background_layout.addWidget(center_widget)
 
         # Graphical Interface Section
         graphical_interface_section = QWidget(objectName="PreprocessingGraphInterfaceSection")
+        graphical_interface_section.setStyleSheet("margin-top: 15px; margin-left: 7.5px; margin-right: 15px;")
         graphical_interface_layout = QVBoxLayout(graphical_interface_section)
 
         graphical_interface_layout.addWidget(QLabel("Graphical 3D interface of input image", objectName="PreprocessingGraphicalInterface"), 10)
@@ -159,11 +164,11 @@ class PreprocessingScreen(QWidget):
         icon_button.setIcon(QIcon("./src/Icons/slider_dark.svg"))  # Set the SVG icon
         icon_button.setIconSize(QSize(15, 15))  # Set size of the icon (optional)
         icon_button.clicked.connect(self.view_settings_window)  # Connect to the new window function
-        icon_button.setFixedSize(40,40)
+        icon_button.setFixedSize(55,45)
 
         # Fullscreen button
         fs_button = QPushButton("Fullscreen")
-        fs_button.setFixedSize(120, 40)
+        fs_button.setFixedSize(140, 45)
         fs_button.clicked.connect(self.view_3d_interface)
 
         # Create a horizontal layout to place buttons on the same row
@@ -173,6 +178,7 @@ class PreprocessingScreen(QWidget):
 
         # Create a widget to hold the buttons and image
         button_widget = QWidget()
+        # button_widget.setStyleSheet("background-color: orange")
         button_widget.setLayout(button_layout)
 
         center_widget_preview = QWidget()
@@ -186,23 +192,23 @@ class PreprocessingScreen(QWidget):
         preprocessing_area_layout.addWidget(background_section, 45)
         preprocessing_area_layout.addWidget(graphical_interface_section, 45)
 
-        # Directory Saving Section
-        directory_saving_area = QWidget(objectName="PreprocessingDirectoryArea")
-        directory_saving_area.setContentsMargins(15, 15, 15, 15)
-        directory_text_layout = QVBoxLayout(directory_saving_area)
-        directory_text_layout.addWidget(QLabel("Select a directory to save the synthetic data.", objectName="PreprocessingDirectoryInstructions"))
+        # # Directory Saving Section
+        # directory_saving_area = QWidget(objectName="PreprocessingDirectoryArea")
+        # directory_saving_area.setContentsMargins(15, 15, 15, 15)
+        # directory_text_layout = QVBoxLayout(directory_saving_area)
+        # directory_text_layout.addWidget(QLabel("Select a directory to save the synthetic data.", objectName="PreprocessingDirectoryInstructions"))
 
-        self.directory_input = QLineEdit(objectName="PreprocessingDirectoryInput")
-        self.directory_input.setFixedHeight(25)
+        # self.directory_input = QLineEdit(objectName="PreprocessingDirectoryInput")
+        # self.directory_input.setFixedHeight(25)
 
-        browse_button = QPushButton("Browse")
-        browse_button.setFixedHeight(25)
-        browse_button.clicked.connect(self.select_directory)
+        # browse_button = QPushButton("Browse")
+        # browse_button.setFixedHeight(25)
+        # browse_button.clicked.connect(self.select_directory)
 
-        directory_input_layout = QHBoxLayout()
-        directory_input_layout.addWidget(self.directory_input)
-        directory_input_layout.addWidget(browse_button)
-        directory_text_layout.addLayout(directory_input_layout)
+        # directory_input_layout = QHBoxLayout()
+        # directory_input_layout.addWidget(self.directory_input)
+        # directory_input_layout.addWidget(browse_button)
+        # directory_text_layout.addLayout(directory_input_layout)
 
         # Navigation Section
         navigation_area = QWidget(objectName="PreprocessingNavigationArea")
@@ -229,8 +235,8 @@ class PreprocessingScreen(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         main_layout.addWidget(title_area, 10)
-        main_layout.addWidget(preprocessing_results_area, 63)
-        main_layout.addWidget(directory_saving_area, 17)
+        main_layout.addWidget(preprocessing_results_area, 80)
+        # main_layout.addWidget(directory_saving_area, 17)
         main_layout.addWidget(navigation_area, 10)
 
 
@@ -256,10 +262,10 @@ class PreprocessingScreen(QWidget):
         coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
         o3d.visualization.draw_geometries([self.triangle_mesh, coordinate_frame])
         
-    def select_directory(self):
-        directory = QFileDialog.getExistingDirectory(self, "Select Directory")
-        if directory:
-            self.directory_input.setText(directory)
+    # def select_directory(self):
+    #     directory = QFileDialog.getExistingDirectory(self, "Select Directory")
+    #     if directory:
+    #         self.directory_input.setText(directory)
 
     def move_to_next(self):
         # Increment the index and wrap around if it exceeds the number of processed images
@@ -831,30 +837,11 @@ class PreprocessingScreen(QWidget):
             print("Already on the first page")
 
     def go_to_next_page(self):
-        if (len(self.directory_input.text()) == 0):
-            error_msg = QMessageBox()
-            
-            # Set critical icon for error message
-            error_msg.setIcon(QMessageBox.Critical)
-            
-            # Set the title of the error message box
-            error_msg.setWindowTitle("Empty Path Error")
-            
-            # Set the detailed text to help the user troubleshoot
-            error_msg.setText('<span style="color:#005ace;font-size: 15px;">No Path Input!</span>')
-            error_msg.setInformativeText("Please make sure you specify a path")
-            
-            # Set the standard button to close the message box
-            error_msg.setStandardButtons(QMessageBox.Ok)
-
-            # Execute and show the message box
-            error_msg.exec_()
-            return
         current_index = self.parent.currentIndex()
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 1)
-            next_screen = self.parent.widget(self.parent.currentIndex())
-            next_screen.update_variables(self.triangle_mesh, self.directory_input.text())
+            two_screens_ahead = self.parent.widget(self.parent.currentIndex() + 1)
+            two_screens_ahead.update_triangle_mesh(self.triangle_mesh)
         else:
             print("Already on the last page")
 

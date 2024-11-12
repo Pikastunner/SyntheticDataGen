@@ -11,6 +11,7 @@ from Screens.Constants import OUTPUT_PATH
 from pxr import Usd, UsdGeom, Vt, Gf
 from pxr import Usd, UsdGeom, Gf, Vt, Sdf, UsdShade
 import numpy as np
+import json
 
 
 from plyer.utils import platform
@@ -19,12 +20,16 @@ from plyer import notification
 # Preprocessing Page
 class FinishingScreen(QWidget):
 
-    # This function is called when FinishingScreen made visible    
-    def update_variables(self, triangle_mesh, output_path):
+    def update_triangle_mesh(self, triangle_mesh):
         self.mesh = triangle_mesh
+
+
+    # This function is called when FinishingScreen made visible    
+    def update_variables(self, num_images, output_path):
+        self.num_images = num_images
         self.output_path = output_path
 
-        FinishingScreen.convert_mesh_to_usd(self.mesh)
+        FinishingScreen.convert_mesh_to_usd(self.mesh, usd_file_path=self.output_path+"/mesh_usd.usda")
         self.generate_images()
 
         notification.notify(
@@ -79,7 +84,7 @@ class FinishingScreen(QWidget):
         
     def generate_images(self, obj_usd_location=None):
         import subprocess  # Runs as separate process to avoid errors
-        subprocess.run(['python', './src/Screens/Generator.py', self.output_path], stdout=None, stderr=None, text=True)
+        subprocess.run(['python', './src/Screens/Generator.py', self.output_path, str(self.num_images)], stdout=None, stderr=None, text=True)
 
 
     def __init__(self, parent):
@@ -125,6 +130,7 @@ class FinishingScreen(QWidget):
         total_layout = QHBoxLayout()
         total_layout.setSpacing(10)
         large_image_area = QWidget(objectName="FinScreenLargeImageArea")
+        large_image_area.setStyleSheet("margin-left: 15px;")
 
         large_image_layout = QVBoxLayout()
         large_image_layout.setContentsMargins(0, 0, 0, 0)
@@ -163,6 +169,7 @@ class FinishingScreen(QWidget):
         large_image_area.setLayout(large_image_layout)
 
         small_image_area = QWidget(objectName="FinSmallImageArea")
+        small_image_area.setStyleSheet("margin-right: 5px;")
 
         small_image_layout = QVBoxLayout()
         small_image_layout.setContentsMargins(0, 0, 0, 0)
