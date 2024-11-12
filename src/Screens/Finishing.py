@@ -35,7 +35,7 @@ class FinishingScreen(QWidget):
             print(f"Failed to write num_images to JSON file: {e}")
 
         FinishingScreen.convert_mesh_to_usd(self.mesh, usd_file_path=self.output_path+"/mesh_usd.usda")
-        FinishingScreen.generate_images()
+        FinishingScreen.generate_images(self.num_images)
 
         self.setup_gui()
 
@@ -83,7 +83,7 @@ class FinishingScreen(QWidget):
         
 
     @staticmethod
-    def generate_images(self, obj_usd_location=None):
+    def generate_images(num_images=10, obj_usd_location=None):
         import subprocess  # Runs as separate process to avoid errors
         subprocess.run(['python', './src/Screens/Generator.py'], stdout=None, stderr=None, text=True)
 
