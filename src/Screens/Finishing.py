@@ -87,7 +87,7 @@ class FinishingScreen(QWidget):
     @staticmethod
     def generate_images(num_images=10, obj_usd_location=None):
         import subprocess  # Runs as separate process to avoid errors
-        subprocess.run(['python', './src/Screens/Generator.py'], stdout=None, stderr=None, text=True)
+        subprocess.run(['python', './src/Screens/Generator.py', num_images], stdout=None, stderr=None, text=True)
 
 
     def __init__(self, parent):
