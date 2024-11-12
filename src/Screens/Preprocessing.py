@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (QWidget, QLineEdit, QPushButton, QLabel, QVBoxLayou
                              QFileDialog, QMessageBox, QSizePolicy, QMainWindow, QCheckBox, QComboBox, QSpacerItem, QSpinBox, QDoubleSpinBox)
 from PyQt5.QtGui import QImage, QPixmap,QIcon
 from PyQt5.QtCore import Qt, QThread, QSize, QPoint, QRect
+from Screens.Loader import LoadingScreen, LoadingWorkerFinishing 
 import cv2.aruco as aruco
 from rembg import remove
 from PIL import Image
@@ -94,6 +95,7 @@ class PreprocessingScreen(QWidget):
     ############################################################
     def __init__(self, parent):
         super().__init__()
+
         self.parent = parent
 
         self.accumulated_point_cloud = o3d.geometry.PointCloud()
@@ -730,9 +732,10 @@ class PreprocessingScreen(QWidget):
     ############################################################
         
     def go_to_back_page(self):
-        current_index = self.parent.currentIndex()
+        par = self.parent.stacked_widget
+        current_index = par.currentIndex()
         if current_index > 0:
-            self.parent.setCurrentIndex(current_index - 1) 
+            par.setCurrentIndex(current_index - 1) 
         else:
             print("Already on the first page")
 
@@ -756,11 +759,25 @@ class PreprocessingScreen(QWidget):
             # Execute and show the message box
             error_msg.exec_()
             return
-        current_index = self.parent.currentIndex()
-        if current_index < self.parent.count() - 1:
-            self.parent.setCurrentIndex(current_index + 1)
-            next_screen = self.parent.widget(self.parent.currentIndex())
-            next_screen.update_variables(self.triangle_mesh, self.directory_input.text())
+        # current_index = par.currentIndex()
+        # if current_index < par.count() - 1:
+
+        #     par.setCurrentIndex(current_index + 1)
+        #     next_screen = par.widget(par.currentIndex())
+        #     next_screen.update_variables(self.triangle_mesh, self.directory_input.text())
+
+        par = self.parent.stacked_widget
+        current_index = par.currentIndex()
+        if current_index < par.count() - 1:
+            t_estimate = 50   # 50 seconds
+            self.loading_screen = LoadingScreen(self.parent, t_estimate)
+            self.loading_screen.show()
+
+            self.loading_worker = LoadingWorkerFinishing(
+                self.triangle_mesh, self.directory_input.text(), self.parent.stacked_widget
+            )
+            self.loading_worker.finished.connect(self.loading_screen.close)
+            self.loading_worker.start()
         else:
             print("Already on the last page")
 

@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 
-from Screens.Loader import LoadingScreen, LoadingWorker
+from Screens.Loader import LoadingScreen, LoadingWorkerPreprocessing
 from Screens.Constants import K_ARUCO_PROCESS, M_ARUCO_PROCESS, K_MESH_GEN
 
 # Component 5
@@ -218,8 +218,9 @@ class CapturedPhotoReviewScreen(QWidget):
             self.loading_screen = LoadingScreen(self.parent, t_estimate)
             self.loading_screen.show()
 
-            self.loading_worker = LoadingWorker(
-                self.img_paths, self.depth_paths, self.parent.stacked_widget)
+            self.loading_worker = LoadingWorkerPreprocessing(
+                self.img_paths, self.depth_paths, self.parent.stacked_widget
+            )
             self.loading_worker.finished.connect(self.on_loading_finished)
             self.loading_worker.start()
             

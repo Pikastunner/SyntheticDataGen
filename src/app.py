@@ -41,7 +41,8 @@ class MainApp(QMainWindow):
         self.stacked_widget.addWidget(PreviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(UploadScreen(self.stacked_widget))
         self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self))
-        self.stacked_widget.addWidget(PreprocessingScreen(self.stacked_widget))
+        # self.stacked_widget.addWidget(PreprocessingScreen(self.stacked_widget))
+        self.stacked_widget.addWidget(PreprocessingScreen(self))
         self.stacked_widget.addWidget(FinishingScreen(self.stacked_widget))
         
         self.stacked_widget.setCurrentIndex(0)

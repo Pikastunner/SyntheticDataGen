@@ -4,9 +4,10 @@ from PyQt5.QtGui import QMovie
 
 from Screens.Constants import WIN_WIDTH, WIN_HEIGHT
 
-class LoadingWorker(QThread):
-    # progress_changed = pyqtSignal(int)
+import json
+import random
 
+class LoadingWorkerPreprocessing(QThread):
     def __init__(self, img_paths, depth_paths, parent=None):
         super().__init__(parent)
         self.img_paths = img_paths
@@ -19,16 +20,36 @@ class LoadingWorker(QThread):
         next_screen.update_variables(self.img_paths, self.depth_paths)
 
 
+class LoadingWorkerFinishing(QThread):
+    def __init__(self, triangle_mesh, dir_input: str, parent=None):
+        super().__init__(parent)
+        self.triangle_mesh = triangle_mesh
+        self.dir_input = dir_input
+        self.parent = parent
+
+    def run(self):
+        # self.msleep(15000)
+        self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
+        next_screen = self.parent.widget(self.parent.currentIndex())
+        next_screen.update_variables(self.triangle_mesh, self.dir_input)
+
+
 class LoadingScreen(QDialog):
     def __init__(self, parent: QMainWindow | None = None, time_estimate: float = 10):
         super().__init__(parent)
+
+        with open("src/Icons/random_facts.json") as f:
+            self.random_facts = json.load(f)
+
         self.setWindowTitle("Bro, I'm processing. Just chillax!")
-        self.setFixedSize(700, 650)
+        self.setFixedSize(700, 630)
+        # self.setFixedSize(700, 650)
         self.setStyleSheet("border-radius: 20px;")
         
         is_light = parent.is_light() if parent else True
 
-        gPath = f'src/Icons/app_load_animation{"" if is_light else "_dark"}.gif'
+        mode = "_light" if is_light else "_dark"
+        gPath = f'src/Icons/app_load_animation{mode}.gif'
 
         self.setWindowModality(Qt.ApplicationModal)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
@@ -62,11 +83,14 @@ class LoadingScreen(QDialog):
 
     def update_countdown(self):
         """Update the countdown text."""
+        self.countdown_value -= 1
         if self.countdown_value > 0:
-            self.countdown_value -= 1
             self.countdown_label.setText(f"Estimated time: {self.countdown_value} seconds")
         else:
-            self.countdown_label.setText("Loading complete")
+            if self.countdown_value == 0:
+                self.countdown_label.setText(f"Fun Fact: {random.choice(self.random_facts)}")
+            elif self.countdown_value == -4:
+                self.countdown_value = 1
 
     def showEvent(self, event):
         # Center the loading screen over the parent window when it's shown
