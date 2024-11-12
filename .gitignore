@@ -1,6 +1,12 @@
 # Ignore directories
 out/
 .venv/
+<<<<<<< HEAD
+=======
+run.sh
+test.py
+test?.py
+>>>>>>> 6f887b285772031bace6a88251f5e70f6a260802
 _output/
 output_scene/
 _temp/

@@ -55,6 +55,7 @@ QWidget#OptionsTextSection {
     background-color: #2e2e2e; /* Darker background */
 }
 
+QDialog,
 QMainWindow#SettingsWindow {
     background-color: #2e2e2e; /* Darker background */
 }

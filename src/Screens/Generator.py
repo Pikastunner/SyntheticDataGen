@@ -53,8 +53,9 @@ with rep.new_layer():
         with object:
             rep.modify.pose(
                 position=(0, 0, 0),
-                rotation=rep.distribution.uniform([-90]*3, [90]*3),
-                scale=rep.distribution.uniform(1, 10),
+                # The ptich pitch is constrained to be above the horizontal because it is stupid to take photos from angle where there is no point cloud data
+                rotation=rep.distribution.uniform([0, -360, -360], [0, 360, 360]),
+                scale=rep.distribution.uniform(5, 10),
             )
 
     # Initialize and attach writer

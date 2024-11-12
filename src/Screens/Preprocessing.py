@@ -27,12 +27,32 @@ class PreprocessingScreen(QWidget):
             # (PUT STUFF HERE THAT DOESN'T NEED TO BE 
             # CALLED ON IMMEDIATE STARTUP)
     ############################################################
-    def update_variables(self, rgb_filenames, depth_filenames):
+    def update_variables(self, rgb_filenames, depth_filenames):    
         self.processed_images, self.depth_images, self.aruco_datas = self.process_images(rgb_filenames, depth_filenames)
         self.image_index = 0
 
         ## ANNOTATE THE IMAGES WITH THE BOARD CENTRE
         self.annotated_images = []
+        # Annotate image with board centre
+        for i, img in enumerate(self.processed_images):
+            img = self.processed_images[i]
+
+            corners = self.aruco_datas[i][0]
+            ids = self.aruco_datas[i][1]
+
+            if len(ids) < 2:
+                continue
+            objpoints, imgpoints = aruco_board().matchImagePoints(corners, ids)
+
+            if objpoints is None or imgpoints is None or not objpoints.any() or not imgpoints.any():
+                continue
+            if len(objpoints) < 4 or len(imgpoints) < 4:
+                continue
+
+            _, rvec, tvec = cv2.solvePnP(objectPoints=objpoints, imagePoints=imgpoints, cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), flags=cv2.SOLVEPNP_ITERATIVE)
+            self.annotated_images.append(cv2.drawFrameAxes(img.copy(), cameraMatrix=camera_matrix(), distCoeffs=dist_coeffs(), rvec=rvec, tvec=tvec , thickness=3, length=0.02))
+
+        ## DISPLAY THE FIRST IMAGE
         with concurrent.futures.ThreadPoolExecutor() as executor:
             tasks = [
                 (i, self.processed_images[i], self.aruco_datas[i][0], self.aruco_datas[i][1])
@@ -68,7 +88,6 @@ class PreprocessingScreen(QWidget):
 
         ## GENERATE MESH HANDLES THINGS FROM HERE ON
         self.generate_mesh()
-
 
     ############################################################
             # GUI BEHAVIOUR/DISPLAY AND CLASS VARS
@@ -366,8 +385,7 @@ class PreprocessingScreen(QWidget):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = {executor.submit(self.process_image, rgb_images[i], depth_images[i]): i 
                        for i in range(min(len(rgb_images), len(depth_images)))}
-            
-            for future in concurrent.futures.as_completed(futures):
+            for i, future in enumerate(concurrent.futures.as_completed(futures)):
                 result = future.result()
                 if result[0] is not None:
                     processed_images.append(result[0])
