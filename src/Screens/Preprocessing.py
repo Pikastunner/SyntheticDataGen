@@ -19,6 +19,9 @@ import concurrent.futures
 import time
 from scipy.spatial import Delaunay
 
+from sklearn.neighbors import NearestNeighbors
+from joblib import Parallel, delayed
+
 # Preprocessing Page
 class PreprocessingScreen(QWidget):
 
@@ -85,6 +88,9 @@ class PreprocessingScreen(QWidget):
             print(f"Directory /_output/ and all its contents have been removed.")
         # Recreate the empty directory
         os.makedirs("./_output")
+
+        o3d.io.write_point_cloud("./_output/pcl.pcd",  self.accumulated_point_cloud)     
+
 
         ## GENERATE MESH HANDLES THINGS FROM HERE ON
         self.generate_mesh()
@@ -469,7 +475,7 @@ class PreprocessingScreen(QWidget):
                 accumulated_point_cloud += point_cloud         
         
         # Remove any outliers that arent connected to largest point cloud
-        accumulated_point_cloud = PreprocessingScreen.remove_scraggly_bits(accumulated_point_cloud, min_points=4)       
+        accumulated_point_cloud = PreprocessingScreen.remove_scraggly_bits(accumulated_point_cloud, min_points=4)
 
         return accumulated_point_cloud
     
@@ -520,6 +526,9 @@ class PreprocessingScreen(QWidget):
     ############################################################
             # STEP 3: CREATE A MESH FROM POINT CLOUD
     ############################################################
+
+
+
     def view_settings_window(self):
         # Create the settings window as a new QMainWindow
         self.settings_window = QMainWindow(self, objectName="SettingsWindow")
@@ -661,28 +670,112 @@ class PreprocessingScreen(QWidget):
         self.graphical_interface_image.setFixedHeight(self.background_image.height()) # Match background image height
 
 
-    def generate_mesh_with_poisson(self, pcl):
-        # Step 1: Estimate normals (if not already available)
-        pcl.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(
-            radius=self.normal_estimation_radius, max_nn=self.normal_estimation_neighbours))  # Use the attribute here
+    def estimate_normals_neighborhood_reconstruction(self, pcd, radius=0.5):
+        kdtree = o3d.geometry.KDTreeFlann(pcd)
+
+        # Placeholder for normals
+        normals = []
+
+        # Iterate through each point in the point cloud
+        for i in range(len(pcd.points)):
+            # Find neighbors within the specified radius
+            [_, idx, _] = kdtree.search_radius_vector_3d(pcd.points[i], radius)
+            if len(idx) < 3:
+                normals.append([0, 0, 1])  # Default normal if less than 3 neighbors
+                continue
+
+            # Extract the neighbor points and get eigenvalues/vectors
+            neighbor_points = np.asarray(pcd.points)[idx, :]
+            covariance_matrix = np.cov(neighbor_points.T)
+            eigenvalues, eigenvectors = np.linalg.eigh(covariance_matrix)
+
+            # Normal is the eigenvector corresponding to the smallest eigenvalue
+            normal = eigenvectors[:, np.argmin(eigenvalues)]
+
+            # Ensure normal direction consistency
+            if np.dot(normal, pcd.points[i]) < 0:
+                normal = -normal
+
+            normals.append(normal)
+        normals = np.array(normals)
+        pcd.normals = o3d.utility.Vector3dVector(normals)
+
+    @staticmethod
+    def mls_smooth_point(i, points, nbrs, n_neighbors):
+        # print(i)
+        point = points[i]
+        _, indices = nbrs.radius_neighbors([point])
+        neighbors = points[indices[0]]
         
-        # Step 2: Orient normals consistently if specified
-        if self.orient_normals:
-            # Using the consistent tangent plane method for normal orientation
-            pcl.orient_normals_consistent_tangent_plane(self.orient_normals_neighbours)
+        # Compute the centroid of the neighbors
+        centroid = np.mean(neighbors, axis=0)
+        
+        # Compute the covariance matrix of the neighbors
+        cov_matrix = np.cov(neighbors - centroid, rowvar=False)
+        
+        # Compute the eigenvectors and eigenvalues of the covariance matrix
+        _, eigenvectors = np.linalg.eigh(cov_matrix)
+        
+        # The normal vector is the eigenvector corresponding to the smallest eigenvalue
+        normal = eigenvectors[:, 0]
+        
+        # Project the point onto the plane defined by the neighbors
+        point_on_plane = point - np.dot(point - centroid, normal) * normal
+        
+        return point_on_plane
 
-        # Step 3: Shift all vertices so that the bottommost vertex is at z=0
-        pcl_np = np.asarray(pcl.points)  # Convert the point cloud to a numpy array
-        min_z = np.min(pcl_np[:, 2])  # Find the minimum z value
-        pcl_np[:, 2] -= min_z  # Shift all vertices so that the bottommost vertex is at z=0
-        pcl.points = o3d.utility.Vector3dVector(pcl_np)  # Set the modified points back to the point cloud
+    @staticmethod
+    def mls_smooth_parallel(pcd, radius=0.01, n_neighbors=30, n_jobs=-1):
+        # Convert point cloud to numpy array
+        points = np.asarray(pcd.points)
+        
+        # Create a NearestNeighbors object to find neighbors
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, radius=radius)
+        nbrs.fit(points)
+        
+        # Parallelize the MLS smoothing using joblib
+        smoothed_points = Parallel(n_jobs=n_jobs)(
+            delayed(PreprocessingScreen.mls_smooth_point)(i, points, nbrs, n_neighbors) for i in range(len(points))
+        )
+        
+        # Convert the smoothed points back into a point cloud
+        smoothed_pcd = o3d.geometry.PointCloud()
+        smoothed_pcd.points = o3d.utility.Vector3dVector(np.array(smoothed_points))
+        
+        return smoothed_pcd
 
-        # Step 4: Perform Poisson surface reconstruction
-        poisson_mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            pcl, depth=self.poisson_octree_depth, width=0, scale=self.poisson_samples_per_node,
-            linear_fit=self.orient_normals)  # Use the parameters from the class
+    def generate_mesh_with_poisson(self, pcd):
+        voxel_size = 0.001  # Adjust voxel size for desired level of reduction
+        downsampled_pcd = pcd.voxel_down_sample(voxel_size)
 
-        return poisson_mesh
+        # Convert the point clouds to numpy arrays
+        original_points = np.asarray(pcd.points)
+        reduced_points = np.asarray(downsampled_pcd.points)
+
+        # Get the colors from the original point cloud
+        original_colors = np.asarray(pcd.colors)
+
+        # Use NearestNeighbors to find the closest points between the original and reduced point clouds and assign colors
+        nbrs = NearestNeighbors(n_neighbors=1, algorithm='auto').fit(original_points)
+        _, indices = nbrs.kneighbors(reduced_points)
+        reduced_colors = original_colors[indices.flatten()]
+        downsampled_pcd.colors = o3d.utility.Vector3dVector(reduced_colors)
+
+        # Perform MLS smoothing with parallelization and set the colors again
+        smoothed_pcd = PreprocessingScreen.mls_smooth_parallel(downsampled_pcd, radius=0.017, n_neighbors=120, n_jobs=-1)
+        smoothed_pcd.colors = downsampled_pcd.colors
+
+        self.estimate_normals_neighborhood_reconstruction(smoothed_pcd, radius=0.05)
+
+        # Create the Poisson surface reconstruction and filter out bottom 5% density areas
+        poisson_mesh, poisson_densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(smoothed_pcd, depth=11)
+        densities = np.asarray(poisson_densities)
+        threshold = np.percentile(densities, 5)
+        triangles_to_keep = densities > threshold
+        filtered_mesh = poisson_mesh.select_by_index(np.where(triangles_to_keep)[0])
+
+        return filtered_mesh
+
 
     def generate_mesh_with_alpha_shapes(self, pcl):
         pcl_np = np.asarray(pcl.points)

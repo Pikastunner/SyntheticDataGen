@@ -32,8 +32,13 @@ import sys
 MODEL_PATH = os.path.abspath("./_output/mesh_usd.usda") # This doesn't change because i made it that way
 OUTPUT_DIR = os.path.abspath(sys.argv[1] + "/coco_data/")
 
+
 # Perform replicator functions on a new layer
 with rep.new_layer():
+    ground = rep.create.plane(scale=(10, 10, 1), position=(0, 0, -0.1))
+    ground.material_color = (0,0, 0)
+    
+
     camera = rep.create.camera(
             position=(1,1,1),
             look_at=(0,0,0)
@@ -45,6 +50,7 @@ with rep.new_layer():
         intensity=1000,
     )
 
+    ## Populate the scene with some shapes
     object = rep.get.prim_at_path(path="/GeneratedMesh")   # do not change
     rep.modify.semantics([("class", "generatedobj")], object)
     
@@ -55,7 +61,7 @@ with rep.new_layer():
                 position=(0, 0, 0),
                 # The ptich pitch is constrained to be above the horizontal because it is stupid to take photos from angle where there is no point cloud data
                 rotation=rep.distribution.uniform([0, -360, -360], [0, 360, 360]),
-                scale=rep.distribution.uniform(5, 10),
+                scale=rep.distribution.uniform(8, 10),
             )
 
     # Initialize and attach writer
