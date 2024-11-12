@@ -250,7 +250,7 @@ class PreprocessingScreen(QWidget):
         self.normal_estimation_neighbours = 30
         self.normal_estimation_radius = 0.05
         # This option should appear when the above is enabled
-        self.poisson_density_filter = 15
+        self.poisson_density_filter = 9
         self.poisson_depth = 11
 
         # Options for alpha reconstruction
