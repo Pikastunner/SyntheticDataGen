@@ -24,7 +24,9 @@ opencv_python==4.5.5.64
 Pillow
 PyQt5==5.15.11
 pyrealsense2==2.55.1.6486
-rembg[cuda]
 rembg
+rembg[cuda]
 scipy==1.14.1
 usd_core
+joblib
+scikit-learn

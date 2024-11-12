@@ -21,8 +21,8 @@ class FinishingScreen(QWidget):
         self.mesh = triangle_mesh
         self.output_path = output_path
 
-        FinishingScreen.convert_mesh_to_usd(self.mesh, usd_file_path=self.output_path+"/mesh_usd.usda")
-        FinishingScreen.generate_images()
+        FinishingScreen.convert_mesh_to_usd(self.mesh)
+        self.generate_images()
 
         # self.setup_gui()
 
@@ -58,21 +58,19 @@ class FinishingScreen(QWidget):
         # Check if the Open3D mesh has vertex colors
         if open3d_mesh.has_vertex_colors():
             vertex_colors = np.asarray(open3d_mesh.vertex_colors)
-            # Convert vertex colors to a format compatible with USD
+            # Convert vertex colors to a format compatible with USD (Gf.Vec3f)
             color_values = [Gf.Vec3f(*color) for color in vertex_colors]
 
-            # Set the display color attribute with vertex colors
-            color_attr = mesh_prim.GetDisplayColorAttr()
-            color_attr.Set(Vt.Vec3fArray(color_values))
-
+            # Create the display color attribute with varying interpolation
+            mesh_prim.CreateDisplayColorAttr().Set(Vt.Vec3fArray(color_values))
+            mesh_prim.GetDisplayColorPrimvar().SetInterpolation(UsdGeom.Tokens.vertex)
+            
         # Save the stage
         stage.GetRootLayer().Save()
         
-
-    @staticmethod
-    def generate_images(obj_usd_location=None):
+    def generate_images(self, obj_usd_location=None):
         import subprocess  # Runs as separate process to avoid errors
-        subprocess.run(['python', './src/Screens/Generator.py'], stdout=None, stderr=None, text=True)
+        subprocess.run(['python', './src/Screens/Generator.py', self.output_path], stdout=None, stderr=None, text=True)
 
 
     def __init__(self, parent):
@@ -124,7 +122,8 @@ class FinishingScreen(QWidget):
         large_image_layout.setSpacing(0)
 
         self.large_image_region = QLabel()
-        self.processed_images = self.load_output_images("./_output/")
+        self.processed_images = self.load_output_images(output_path=self.output_path+"/coco_data/RenderProduct_Replicator/")
+        print(self.output_path+"/coco_data/RenderProduct_Replicator/")
         self.image_index = 0
 
         available_width = int(self.large_image_region.width() * 0.80)
@@ -238,7 +237,7 @@ class FinishingScreen(QWidget):
     def get_files_starting_with(self, folder_path, prefix):
         files = []
         for file in os.listdir(folder_path):
-            if re.search(rf"{prefix}_[0-9]+", file):
+            if re.search(rf"{prefix}", file):
                 files.append(os.path.join(folder_path, file))
         return files
 
