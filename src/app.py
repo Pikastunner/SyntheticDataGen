@@ -10,6 +10,7 @@ from Screens.Preview import PreviewScreen
 from Screens.Preprocessing import PreprocessingScreen
 from Screens.Upload import UploadScreen
 from Screens.Welcome import WelcomeScreen
+from Screens.Configuration import Configuration
 
 # Main Application
 class MainApp(QMainWindow):
@@ -41,8 +42,9 @@ class MainApp(QMainWindow):
         self.stacked_widget.addWidget(UploadScreen(self.stacked_widget))
         self.stacked_widget.addWidget(CapturedPhotoReviewScreen(self.stacked_widget))
         self.stacked_widget.addWidget(PreprocessingScreen(self.stacked_widget))
+        self.stacked_widget.addWidget(Configuration(self.stacked_widget))
         self.stacked_widget.addWidget(FinishingScreen(self.stacked_widget))
-        
+
         self.stacked_widget.setCurrentIndex(0)
 
         # Add settings button to each of the Screens

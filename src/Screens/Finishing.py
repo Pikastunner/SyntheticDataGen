@@ -9,15 +9,30 @@ import re
 
 from pxr import Usd, UsdGeom, Gf, Vt, Sdf, UsdShade
 import numpy as np
+import json
 
 
 # Preprocessing Page
 class FinishingScreen(QWidget):
 
-    # This function is called when FinishingScreen made visible    
-    def update_variables(self, triangle_mesh, output_path):
+    def update_triangle_mesh(self, triangle_mesh):
         self.mesh = triangle_mesh
+
+
+    # This function is called when FinishingScreen made visible    
+    def update_variables(self, num_images, output_path):
+        self.num_images = num_images
         self.output_path = output_path
+        data = {
+            "num_images": self.num_images
+        }
+        
+        try:
+            with open(f"{self.output_path}/config.json", "w") as json_file:
+                json.dump(data, json_file, indent=4)
+            print("num_images written to JSON file successfully.")
+        except IOError as e:
+            print(f"Failed to write num_images to JSON file: {e}")
 
         FinishingScreen.convert_mesh_to_usd(self.mesh, usd_file_path=self.output_path+"/mesh_usd.usda")
         FinishingScreen.generate_images()
@@ -68,7 +83,7 @@ class FinishingScreen(QWidget):
         
 
     @staticmethod
-    def generate_images(obj_usd_location=None):
+    def generate_images(self, obj_usd_location=None):
         import subprocess  # Runs as separate process to avoid errors
         subprocess.run(['python', './src/Screens/Generator.py'], stdout=None, stderr=None, text=True)
 
@@ -84,6 +99,7 @@ class FinishingScreen(QWidget):
         self.processed_images = None
         self.small_image_one = QLabel()
         self.small_image_dim = None
+        self.setup_gui()
 
 
     def setup_gui(self):
@@ -116,6 +132,7 @@ class FinishingScreen(QWidget):
         total_layout = QHBoxLayout()
         total_layout.setSpacing(10)
         large_image_area = QWidget(objectName="FinScreenLargeImageArea")
+        large_image_area.setStyleSheet("margin-left: 15px;")
 
         large_image_layout = QVBoxLayout()
         large_image_layout.setContentsMargins(0, 0, 0, 0)
@@ -153,6 +170,7 @@ class FinishingScreen(QWidget):
         large_image_area.setLayout(large_image_layout)
 
         small_image_area = QWidget(objectName="FinSmallImageArea")
+        small_image_area.setStyleSheet("margin-right: 5px;")
 
         small_image_layout = QVBoxLayout()
         small_image_layout.setContentsMargins(0, 0, 0, 0)
@@ -236,7 +254,7 @@ class FinishingScreen(QWidget):
     def get_files_starting_with(self, folder_path, prefix):
         files = []
         for file in os.listdir(folder_path):
-            if re.search(rf"{prefix}_[0-9]+", file):
+            if re.search(rf"{prefix}.*_[0-9]+", file):
                 files.append(os.path.join(folder_path, file))
         return files
 

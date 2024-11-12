@@ -159,6 +159,18 @@
 '''
 This code is ran as a subprocess and called from the main process (the gui app). It doesn't play well with PyQt :/
 '''
+import json 
+def read_num_images_from_json(file_path):
+    try:
+        with open(file_path, "r") as json_file:
+            data = json.load(json_file)
+            num_images = data.get("num_images", None)
+            print(f"Number of images read from JSON: {num_images}")
+            return num_images
+    except FileNotFoundError:
+        print("JSON file not found.")
+    except json.JSONDecodeError:
+        print("Error decoding JSON file.")
 
 
 # This needs to be imported first before anything else 
@@ -202,8 +214,10 @@ with rep.new_layer():
 
     )
 
-    render_product = rep.create.render_product(camera, (600, 600))            
-    with rep.trigger.on_frame(max_execs=10):    # Controls the amount of executions (images) that are created
+    render_product = rep.create.render_product(camera, (600, 600))  
+    num_images = read_num_images_from_json("config.json")
+              
+    with rep.trigger.on_frame(max_execs=num_images):    # Controls the amount of executions (images) that are created
         objects = rep.get.prim_at_path(path="/GeneratedMesh")   # do not change or i will touch yo[u ]
         with objects:
             rep.modify.pose(

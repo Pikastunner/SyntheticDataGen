@@ -29,14 +29,18 @@ class CapturedPhotoReviewScreen(QWidget):
         # Set up the main layout
         main_layout = QVBoxLayout()
 
+        top_widget_layout = QVBoxLayout()
+
         # Row 1: Heading "Captured Photo Review"
-        heading_label = QLabel("Photo Review", objectName="PhotoReviewHeading")
-        heading_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(heading_label)
+        heading_label = QLabel("Photo Review", objectName="Label1")
+        heading_label.setStyleSheet("margin-top: 15px; margin-right: 15px; margin-left: 15px;")
+        # heading_label.setAlignment(Qt.AlignCenter)
+        top_widget_layout.addWidget(heading_label)
 
         # Row 2: Text "Confirm that these are the photos to use"
-        confirm_label = QLabel("Confirm that these are the photos to use", objectName="CaptureConfirmLabel")
-        main_layout.addWidget(confirm_label)
+        confirm_label = QLabel("Confirm that these are the photos to use", objectName="Label2")
+        confirm_label.setStyleSheet("margin-bottom: 15px; margin-right: 15px; margin-left: 15px;")
+        top_widget_layout.addWidget(confirm_label)
 
         # Row 3: Two columns with a large image frame and three smaller image frames
         row3_layout = QHBoxLayout()
@@ -84,7 +88,7 @@ class CapturedPhotoReviewScreen(QWidget):
         small_images_layout.addLayout(spacerLayout)
 
         row3_layout.addLayout(small_images_layout)
-        main_layout.addLayout(row3_layout)
+        top_widget_layout.addLayout(row3_layout)
 
         navigation_layout = QHBoxLayout()
         navigation_area = QWidget()
@@ -110,12 +114,14 @@ class CapturedPhotoReviewScreen(QWidget):
 
         # Align buttons to the right and bottom
         navigation_buttons_layout.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        navigation_buttons_layout.setContentsMargins(0, 0, 0, 0)
 
         navigation_area.setLayout(navigation_buttons_layout)
         navigation_layout.addWidget(navigation_area)
         
         # Add to main layout
-        main_layout.addLayout(navigation_layout)
+        main_layout.addLayout(top_widget_layout, 90)
+        main_layout.addLayout(navigation_layout, 10)
 
         # Set the layout to the main window
         self.setLayout(main_layout)
