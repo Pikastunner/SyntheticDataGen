@@ -408,8 +408,7 @@ class PreprocessingScreen(QWidget):
                 continue
             if len(objpoints) < 4 or len(imgpoints) < 4:
                 continue
-            
-            # Get matrices to transform the point cloud
+           
             _, rvec, tvec = cv2.solvePnP(
                 objectPoints=objpoints,
                 imagePoints=imgpoints,
@@ -417,10 +416,11 @@ class PreprocessingScreen(QWidget):
                 distCoeffs=dist_coeffs_cached,
                 flags=cv2.SOLVEPNP_ITERATIVE
             )
+
             R, _ = cv2.Rodrigues(rvec)
 
             point_cloud = PreprocessingScreen.depth_to_point_cloud(rgb_image, depth_image)
-            point_cloud = PreprocessingScreen.remove_scraggly_bits(point_cloud)
+            point_cloud = PreprocessingScreen.remove_scraggly_bits(point_cloud, min_points=30)
             
             # Compute transformation matrix
             transformation_matrix = np.eye(4)
@@ -437,6 +437,7 @@ class PreprocessingScreen(QWidget):
             if i == 0:
                 accumulated_point_cloud = point_cloud
             else:
+                # TODO disabling ICP algorithm for now
                 # Apply ICP to align the current point cloud with the accumulated point cloud
                 icp_result = o3d.pipelines.registration.registration_icp(
                     point_cloud, 
@@ -450,7 +451,7 @@ class PreprocessingScreen(QWidget):
                 accumulated_point_cloud += point_cloud         
         
         # Remove any outliers that arent connected to largest point cloud
-        accumulated_point_cloud = PreprocessingScreen.remove_scraggly_bits(accumulated_point_cloud)       
+        accumulated_point_cloud = PreprocessingScreen.remove_scraggly_bits(accumulated_point_cloud, min_points=4)       
 
         return accumulated_point_cloud
     
