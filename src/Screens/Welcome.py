@@ -2,8 +2,6 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QPushButton, QLab
                              QFileDialog, QMessageBox, QListWidget, QMainWindow, QStackedWidget, QSizePolicy)
 from PyQt5.QtCore import Qt, QFile, QTextStream, QThread, pyqtSignal
 
-# from camera import is_camera_connected
-
 # WelcomeScreen class for the initial welcome screen
 class WelcomeScreen(QWidget):
     def __init__(self, parent):

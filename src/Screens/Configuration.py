@@ -4,10 +4,8 @@ from PyQt5.QtCore import Qt, QFile, QTextStream, QThread, pyqtSignal
 from Screens.Loader import LoadingScreen, LoadingWorkerFinishing
 from camera import is_camera_connected
 
-# Configuration class for the initial welcome screen
+# Configuration class for the data storage and number of images
 class Configuration(QWidget):
-    # def update_variables(self, triangle_mesh):
-    #     self.triangle_mesh
 
     def __init__(self, parent):
         super().__init__()

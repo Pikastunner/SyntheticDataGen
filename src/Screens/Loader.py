@@ -18,7 +18,6 @@ class LoadingWorkerPreprocessing(QThread):
         self.parent = parent
 
     def run(self):
-        # self.parent.setCurrentIndex(self.parent.currentIndex() + 1)
         next_screen = self.parent.widget(self.parent.currentIndex())
         next_screen.update_variables(self.img_paths, self.depth_paths)
         self.finished_p_signal.emit(self.img_paths, self.depth_paths)

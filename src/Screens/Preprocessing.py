@@ -124,7 +124,6 @@ class PreprocessingScreen(QWidget):
 
         # Background Section
         background_section = QWidget(objectName="PreprocessingBackgroundSection")
-        # background_section.setContentsMargins(15, 15, 15, 15)    
         background_section.setStyleSheet("margin-top: 15px; margin-left: 15px; margin-right: 7.5px;")
         background_layout = QVBoxLayout(background_section)
         background_layout.addWidget(QLabel("Review removed background", objectName="PreprocessingTitle"), 10)
@@ -140,7 +139,6 @@ class PreprocessingScreen(QWidget):
         next_button.clicked.connect(self.move_to_next)
 
         center_widget = QWidget()
-        # center_widget.setStyleSheet("background-color: green")
         center_layout = QVBoxLayout(center_widget)
         center_layout.addWidget(self.background_image_info, alignment=Qt.AlignHCenter)
         center_layout.addWidget(next_button, alignment=Qt.AlignHCenter)
@@ -179,7 +177,6 @@ class PreprocessingScreen(QWidget):
 
         # Create a widget to hold the buttons and image
         button_widget = QWidget()
-        # button_widget.setStyleSheet("background-color: orange")
         button_widget.setLayout(button_layout)
 
         center_widget_preview = QWidget()
@@ -192,24 +189,6 @@ class PreprocessingScreen(QWidget):
         
         preprocessing_area_layout.addWidget(background_section, 45)
         preprocessing_area_layout.addWidget(graphical_interface_section, 45)
-
-        # # Directory Saving Section
-        # directory_saving_area = QWidget(objectName="PreprocessingDirectoryArea")
-        # directory_saving_area.setContentsMargins(15, 15, 15, 15)
-        # directory_text_layout = QVBoxLayout(directory_saving_area)
-        # directory_text_layout.addWidget(QLabel("Select a directory to save the synthetic data.", objectName="PreprocessingDirectoryInstructions"))
-
-        # self.directory_input = QLineEdit(objectName="PreprocessingDirectoryInput")
-        # self.directory_input.setFixedHeight(25)
-
-        # browse_button = QPushButton("Browse")
-        # browse_button.setFixedHeight(25)
-        # browse_button.clicked.connect(self.select_directory)
-
-        # directory_input_layout = QHBoxLayout()
-        # directory_input_layout.addWidget(self.directory_input)
-        # directory_input_layout.addWidget(browse_button)
-        # directory_text_layout.addLayout(directory_input_layout)
 
         # Navigation Section
         navigation_area = QWidget(objectName="PreprocessingNavigationArea")
@@ -237,7 +216,6 @@ class PreprocessingScreen(QWidget):
         main_layout.setSpacing(0)
         main_layout.addWidget(title_area, 10)
         main_layout.addWidget(preprocessing_results_area, 80)
-        # main_layout.addWidget(directory_saving_area, 17)
         main_layout.addWidget(navigation_area, 10)
 
 
@@ -317,7 +295,6 @@ class PreprocessingScreen(QWidget):
         parameters = aruco.DetectorParameters()
         parameters.adaptiveThreshWinSizeMax = 80  # Increase max value for better handling of varying light
         parameters.errorCorrectionRate = 1
-        # parameters.useAruco3Detection = True
         parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
         parameters.cornerRefinementMaxIterations = 40
 
