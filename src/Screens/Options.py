@@ -12,7 +12,7 @@ class OptionsScreen(QWidget):
 
         # Text Section
         text_section = QWidget()
-        text_section.setObjectName("OptionsTextSection")#setStyleSheet("background-color: #d9d9d9")
+        text_section.setObjectName("OptionsTextSection")
 
         text_section_layout = QVBoxLayout()
 

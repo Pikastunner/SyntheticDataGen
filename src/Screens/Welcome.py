@@ -2,8 +2,6 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QLineEdit, QPushButton, QLab
                              QFileDialog, QMessageBox, QListWidget, QMainWindow, QStackedWidget, QSizePolicy)
 from PyQt5.QtCore import Qt, QFile, QTextStream, QThread, pyqtSignal
 
-from camera import is_camera_connected
-
 # WelcomeScreen class for the initial welcome screen
 class WelcomeScreen(QWidget):
     def __init__(self, parent):
@@ -15,6 +13,7 @@ class WelcomeScreen(QWidget):
 
         # Create the content area
         content_area = QWidget()
+        content_area.setObjectName("ContentArea")
         layout = QVBoxLayout()
 
         # Create the text area in the content area
@@ -100,3 +99,43 @@ class WelcomeScreen(QWidget):
             self.parent.setCurrentIndex(current_index + 3)
             next_screen = self.parent.widget(self.parent.currentIndex())
             next_screen.update_variables(self.saved_rgb_image_filenames, self.saved_depth_image_filenames)
+
+if __name__ == "__main__":
+    from PyQt5.QtGui import QIcon
+    import sys
+
+    class MainApp(QMainWindow):
+        def __init__(self):
+            super().__init__()
+            self.setWindowTitle("Synthetic Data Generator")
+            self.setFixedSize(700, 650)
+            self.setWindowIcon(QIcon("./src/Icons/app_icon.svg")) 
+
+            
+            # Central widget for layout management
+            self.central_widget = QWidget()
+            self.setCentralWidget(self.central_widget)
+            
+            # Main layout that will contain the stacked widget
+            self.main_layout = QVBoxLayout(self.central_widget)
+            self.main_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins around the layout
+            self.main_layout.setSpacing(0)  # Remove spacing between elements in the layout
+            
+            # Main widget for switching between scenes
+            self.stacked_widget = QStackedWidget()
+            self.stacked_widget.setContentsMargins(0, 0, 0, 0) 
+            self.main_layout.addWidget(self.stacked_widget)
+            
+            # Add screens
+            self.stacked_widget.addWidget(WelcomeScreen(self.stacked_widget))
+            
+            self.stacked_widget.setCurrentIndex(0)
+
+    app = QApplication(sys.argv)
+
+    with open("src/Stylesheets/style_light.qss", "r") as fh:
+        app.setStyleSheet(fh.read())
+
+    main_app = MainApp()
+    main_app.show()
+    sys.exit(app.exec_())

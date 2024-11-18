@@ -9,7 +9,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 
-OUTPUT_PATH = "input_images/"
+from Screens.Loader import LoadingScreen, LoadingWorkerPreprocessing
+from Screens.Constants import K_ARUCO_PROCESS, M_ARUCO_PROCESS, K_MESH_GEN
 
 # Component 5
 class CapturedPhotoReviewScreen(QWidget):
@@ -29,14 +30,18 @@ class CapturedPhotoReviewScreen(QWidget):
         # Set up the main layout
         main_layout = QVBoxLayout()
 
+        top_widget_layout = QVBoxLayout()
+
         # Row 1: Heading "Captured Photo Review"
-        heading_label = QLabel("Photo Review", objectName="PhotoReviewHeading")
-        heading_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(heading_label)
+        heading_label = QLabel("Photo Review", objectName="Label1")
+        heading_label.setStyleSheet("margin-top: 15px; margin-right: 15px; margin-left: 15px;")
+        # heading_label.setAlignment(Qt.AlignCenter)
+        top_widget_layout.addWidget(heading_label)
 
         # Row 2: Text "Confirm that these are the photos to use"
-        confirm_label = QLabel("Confirm that these are the photos to use", objectName="CaptureConfirmLabel")
-        main_layout.addWidget(confirm_label)
+        confirm_label = QLabel("Confirm that these are the photos to use", objectName="Label2")
+        confirm_label.setStyleSheet("margin-bottom: 15px; margin-right: 15px; margin-left: 15px;")
+        top_widget_layout.addWidget(confirm_label)
 
         # Row 3: Two columns with a large image frame and three smaller image frames
         row3_layout = QHBoxLayout()
@@ -84,7 +89,7 @@ class CapturedPhotoReviewScreen(QWidget):
         small_images_layout.addLayout(spacerLayout)
 
         row3_layout.addLayout(small_images_layout)
-        main_layout.addLayout(row3_layout)
+        top_widget_layout.addLayout(row3_layout)
 
         navigation_layout = QHBoxLayout()
         navigation_area = QWidget()
@@ -110,12 +115,14 @@ class CapturedPhotoReviewScreen(QWidget):
 
         # Align buttons to the right and bottom
         navigation_buttons_layout.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        navigation_buttons_layout.setContentsMargins(0, 0, 0, 0)
 
         navigation_area.setLayout(navigation_buttons_layout)
         navigation_layout.addWidget(navigation_area)
         
         # Add to main layout
-        main_layout.addLayout(navigation_layout)
+        main_layout.addLayout(top_widget_layout, 90)
+        main_layout.addLayout(navigation_layout, 10)
 
         # Set the layout to the main window
         self.setLayout(main_layout)
@@ -204,21 +211,34 @@ class CapturedPhotoReviewScreen(QWidget):
 
 
     def go_to_back_page(self):
-        current_index = self.parent.currentIndex()
+        current_index = self.parent.stacked_widget.currentIndex()
         if current_index > 0:
-            self.parent.setCurrentIndex(current_index - 1) 
+            self.parent.stacked_widget.setCurrentIndex(current_index - 1) 
         else:
             print("Already on the first page")
 
     def go_to_next_page(self):
-        current_index = self.parent.currentIndex()
-        if current_index < self.parent.count() - 1:
-            self.parent.setCurrentIndex(current_index + 1)
-            next_screen = self.parent.widget(self.parent.currentIndex())
-            next_screen.update_variables(self.img_paths, self.depth_paths)
+        par = self.parent.stacked_widget
+        current_index = par.currentIndex()
+        if current_index < par.count() - 1:
+            t_estimate = (M_ARUCO_PROCESS + K_MESH_GEN) * len(self.img_paths) + K_ARUCO_PROCESS
+            self.loading_screen = LoadingScreen(self.parent, t_estimate)
+            self.loading_screen.show()
+
+            par.setCurrentIndex(par.currentIndex() + 1)
+            self.loading_worker = LoadingWorkerPreprocessing(
+                self.img_paths, self.depth_paths, par
+            )
+            # self.loading_worker.finished.connect(self.on_loading_finished)
+            self.loading_worker.finished_p_signal.connect(self.on_loading_finished)
+            self.loading_worker.start()
             
         else:
             print("Already on the last page")
+    
+    def on_loading_finished(self, img_paths, depth_paths):
+        self.loading_screen.close()
+
 
 if __name__ == "__main__":
     # Run the CapturedPhotoReviewScreen on its own

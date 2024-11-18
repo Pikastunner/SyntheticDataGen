@@ -2,6 +2,10 @@ QWidget#GreenHalf {
     background-color: #84bf3b;
 }
 
+QMainWindow {
+    background-color: #d9d9d9; /* Dark background for the main window */
+}
+
 QLabel#Label1, 
 QLabel#Preprocessing_Title, 
 QWidget#PreprocessingLabel, 
@@ -52,6 +56,14 @@ QWidget#OptionsTextSection {
     background-color: #d9d9d9;
 }
 
+QMainWindow#SettingsWindow {
+    background-color: #d9d9d9;
+}
+
+QDialog {
+    background-color: #d9d9d9;
+}
+
 QWidget#PreprocessingBackgroundSection, 
 QWidget#PreprocessingGraphInterfaceSection {
     margin: 15px;
@@ -79,7 +91,7 @@ QPushButton#BackButton {
 }
 
 QLabel#ImageFrame {
-    border: 2px solid black;
+    border: 2px solid #555555;
 }
 
 QLabel#PhotoReviewHeading {
@@ -93,9 +105,32 @@ QPushButton#LightButton {
     color: black;
 }
 
+QCheckBox {
+    color: black;
+}
 
+QWidget#ContentArea {
+    background-color: #ededed
+}
 
+QLabel#SubHeading {
+    font-weight: bold;
+    font-size: 12px;
+    margin: 10px 30px 10px 15px;
+}
 
+QWidget#NumberSpecifySection {
+    margin: 10px 30px 10px 15px;
+}
 
+QLabel#NumImageCaption {
+    margin-left: 10px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
 
+QSpinBox#NumberImagesInput {
+    background-color: #ededed; 
+    border: none;
+}
 
