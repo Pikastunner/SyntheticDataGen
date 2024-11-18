@@ -34,15 +34,15 @@ class PreviewScreen(QMainWindow):
 
         # Bottom layout for the navigation button
         bottom_layout = QHBoxLayout()
-        self.next_button = QPushButton("Next", self)
-        self.next_button.clicked.connect(self.go_to_next_page)
-        bottom_layout.addWidget(self.next_button)
 
-        # Bottom layout for the navigation button
         self.back_button = QPushButton("Back", self)
         self.back_button.clicked.connect(self.go_to_back_page)
         bottom_layout.addWidget(self.back_button)
 
+        self.next_button = QPushButton("Next", self)
+        self.next_button.clicked.connect(self.go_to_next_page)
+        bottom_layout.addWidget(self.next_button)
+    
         # Main layout with a single image preview and control buttons
         layout = QVBoxLayout()
         layout.addWidget(self.image_label)

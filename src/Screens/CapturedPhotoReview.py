@@ -213,7 +213,7 @@ class CapturedPhotoReviewScreen(QWidget):
     def go_to_back_page(self):
         current_index = self.parent.stacked_widget.currentIndex()
         if current_index > 0:
-            self.parent.stacked_widget.setCurrentIndex(current_index - 1) 
+            self.parent.stacked_widget.setCurrentIndex(current_index - 3) 
         else:
             print("Already on the first page")
 

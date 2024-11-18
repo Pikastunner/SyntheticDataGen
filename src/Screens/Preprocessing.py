@@ -800,7 +800,7 @@ class PreprocessingScreen(QWidget):
         # par = self.parent.stacked_widget
         current_index = self.parent.currentIndex()
         if current_index > 0:
-            self.parent.setCurrentIndex(current_index - 1) 
+            self.parent.setCurrentIndex(current_index - 4)
         else:
             print("Already on the first page")
 
