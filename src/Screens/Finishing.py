@@ -7,22 +7,38 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt
 import re
 
+from Screens.Constants import OUTPUT_PATH
 from pxr import Usd, UsdGeom, Vt, Gf
+from pxr import Usd, UsdGeom, Gf, Vt, Sdf, UsdShade
 import numpy as np
+import json
 
+
+from plyer.utils import platform
+from plyer import notification
 
 # Preprocessing Page
 class FinishingScreen(QWidget):
 
-    # This function is called when FinishingScreen made visible    
-    def update_variables(self, triangle_mesh, output_path):
+    def update_triangle_mesh(self, triangle_mesh):
         self.mesh = triangle_mesh
+
+    # This function is called when FinishingScreen made visible    
+    def update_variables(self, num_images, output_path):
+        self.num_images = num_images
         self.output_path = output_path
 
         FinishingScreen.convert_mesh_to_usd(self.mesh, usd_file_path=self.output_path+"/mesh_usd.usda")
-        FinishingScreen.generate_images()
+        self.generate_images()
 
-        self.setup_gui()
+        # self.setup_gui()
+        notification.notify(
+            title='Rendering Finished',
+            message='Open the application to view your images...',
+            app_name='SyntheticDataGen',
+        )
+
+        # self.setup_gui()
 
 
     @staticmethod
@@ -56,22 +72,19 @@ class FinishingScreen(QWidget):
         # Check if the Open3D mesh has vertex colors
         if open3d_mesh.has_vertex_colors():
             vertex_colors = np.asarray(open3d_mesh.vertex_colors)
-            # Convert vertex colors to a format compatible with USD
+            # Convert vertex colors to a format compatible with USD (Gf.Vec3f)
             color_values = [Gf.Vec3f(*color) for color in vertex_colors]
 
-            # Set the display color attribute with vertex colors
-            color_attr = mesh_prim.GetDisplayColorAttr()
-            color_attr.Set(Vt.Vec3fArray(color_values))
-
+            # Create the display color attribute with varying interpolation
+            mesh_prim.CreateDisplayColorAttr().Set(Vt.Vec3fArray(color_values))
+            mesh_prim.GetDisplayColorPrimvar().SetInterpolation(UsdGeom.Tokens.vertex)
+            
         # Save the stage
         stage.GetRootLayer().Save()
-
-
-
-    @staticmethod
-    def generate_images(obj_usd_location=None):
-        import subprocess   # Have to run as seperate python thingo because it causes errors
-        subprocess.run(['python', './src/Screens/Generator.py'], capture_output=True, text=True)
+        
+    def generate_images(self, obj_usd_location=None):
+        import subprocess  # Runs as separate process to avoid errors
+        subprocess.run(['python', './src/Screens/Generator.py', self.output_path, str(self.num_images)], stdout=None, stderr=None, text=True)
 
 
     def __init__(self, parent):
@@ -117,13 +130,15 @@ class FinishingScreen(QWidget):
         total_layout = QHBoxLayout()
         total_layout.setSpacing(10)
         large_image_area = QWidget(objectName="FinScreenLargeImageArea")
+        large_image_area.setStyleSheet("margin-left: 15px;")
 
         large_image_layout = QVBoxLayout()
         large_image_layout.setContentsMargins(0, 0, 0, 0)
         large_image_layout.setSpacing(0)
 
         self.large_image_region = QLabel()
-        self.processed_images = self.load_output_images("./_output/")
+        self.processed_images = self.load_output_images(output_path=self.output_path+"/coco_data/RenderProduct_Replicator/")
+        print(self.output_path+"/coco_data/RenderProduct_Replicator/")
         self.image_index = 0
 
         available_width = int(self.large_image_region.width() * 0.80)
@@ -154,6 +169,7 @@ class FinishingScreen(QWidget):
         large_image_area.setLayout(large_image_layout)
 
         small_image_area = QWidget(objectName="FinSmallImageArea")
+        small_image_area.setStyleSheet("margin-right: 5px;")
 
         small_image_layout = QVBoxLayout()
         small_image_layout.setContentsMargins(0, 0, 0, 0)
@@ -237,7 +253,7 @@ class FinishingScreen(QWidget):
     def get_files_starting_with(self, folder_path, prefix):
         files = []
         for file in os.listdir(folder_path):
-            if re.search(rf"{prefix}_[0-9]+", file):
+            if re.search(rf"{prefix}", file):
                 files.append(os.path.join(folder_path, file))
         return files
 

@@ -30,10 +30,23 @@ def camera_matrix(): # depth camera intriniscs
                      [0, 387.2332763671875, 241.1577606201172],
                      [0, 0, 1]])
 
+
 def camera_matrix_rgb():
     return np.array([[607.61181641, 0, 326.71447754],
-                     [0, 607.38842773, 245.25457764],
-                     [0, 0, 1]])
+                        [0, 607.38842773, 245.25457764],
+                        [0, 0, 1]])
+
+
+# def camera_matrix(): # depth camera intriniscs
+#     return np.array([[385, 0, 320],
+#                      [0, 385, 240],
+#                      [0, 0, 1]], dtype=float)
+
+# def camera_matrix_rgb():
+#     return np.array([[605, 0, 325],
+#                      [0, 605, 245],
+#                      [0, 0, 1]], dtype=float)
+
 
 
 def dist_coeffs():

@@ -1,4 +1,6 @@
-# preview_screen.py
+
+# PreviewScreen class for the camera feed preview
+
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QLabel, QVBoxLayout,
     QHBoxLayout, QMainWindow
@@ -8,6 +10,9 @@ from PyQt5.QtCore import Qt
 import cv2
 
 from camera import CameraWorker, is_camera_connected
+
+import cv2
+from cv2 import aruco
 
 class PreviewScreen(QMainWindow):
     def __init__(self, parent):
@@ -29,10 +34,15 @@ class PreviewScreen(QMainWindow):
 
         # Bottom layout for the navigation button
         bottom_layout = QHBoxLayout()
+
+        self.back_button = QPushButton("Back", self)
+        self.back_button.clicked.connect(self.go_to_back_page)
+        bottom_layout.addWidget(self.back_button)
+
         self.next_button = QPushButton("Next", self)
         self.next_button.clicked.connect(self.go_to_next_page)
         bottom_layout.addWidget(self.next_button)
-
+    
         # Main layout with a single image preview and control buttons
         layout = QVBoxLayout()
         layout.addWidget(self.image_label)
@@ -51,6 +61,19 @@ class PreviewScreen(QMainWindow):
         self.saved_rgb_image_filenames = []
         self.saved_depth_image_filenames = []
 
+        # Initialize Aruco parameters
+        self.dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+        self.parameters = aruco.DetectorParameters()
+        self.parameters.adaptiveThreshWinSizeMax = 80  # Increase max value for better handling of varying light
+        self.parameters.errorCorrectionRate = 1
+        # self.parameters.useAruco3Detection = True
+        self.parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
+        self.parameters.cornerRefinementMaxIterations = 40
+
+        # Detect ArUco markers before background removal
+        self.detector = aruco.ArucoDetector(self.dictionary, self.parameters)
+        
+
     def start_camera_worker(self):
         if is_camera_connected():
             self.camera_worker = CameraWorker()
@@ -58,12 +81,32 @@ class PreviewScreen(QMainWindow):
             self.camera_worker.start()
 
     def update_image(self, rgb_frame, depth_frame):
+
+        """Update the QLabel with the new frame and perform ArUco detection."""
+         # Convert to BGR as needed for OpenCV functions
+        bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+        
+        # Convert the image to grayscale for marker detection
+        gray_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2GRAY)
+        
+        # Detect ArUco markers
+        corners, ids, _ = self.detector.detectMarkers(gray_frame)
+        
+        # If markers are detected, annotate the image
+        if ids is not None:
+            bgr_frame = aruco.drawDetectedMarkers(bgr_frame, corners, ids)  # Draw detected markers on the frame
+        
+        # Convert BGR back to RGB for displaying
+        rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+        
+
         """Update the QLabel with the new RGB or depth frame based on the toggle state."""
         self.current_frame = (rgb_frame, depth_frame)
         if self.showing_rgb:
             self.display_rgb_image(rgb_frame)
         else:
             self.display_depth_image(depth_frame)
+
 
     def display_rgb_image(self, rgb_frame):
         height, width, channel = rgb_frame.shape
@@ -111,6 +154,6 @@ class PreviewScreen(QMainWindow):
         if current_index < self.parent.count() - 1:
             self.parent.setCurrentIndex(current_index + 2)
             next_screen = self.parent.widget(self.parent.currentIndex())
-            next_screen.update_variables()
+            next_screen.update_variables(self.saved_rgb_image_filenames, self.saved_depth_image_filenames)
         else:
             print("Already on the last page")
