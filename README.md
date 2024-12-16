@@ -58,4 +58,4 @@ To run the application, use the command:
    ```
 
 ### **Website and Downloading Executable**
-You can also download the executable version of SyntheticDataGen from the [website](#). This version is specifically useful for users who do not want to run the application from source. The executable will be updated periodically, so make sure to check for the latest version.
+You can also download the executable version of SyntheticDataGen from the [website](https://drive.google.com/file/d/1PXMKTL-NTnO_Z5ascq4EBPMlFx4dg9mR/view?usp=sharing). This version is specifically useful for users who do not want to run the application from source. The executable will be updated periodically, so make sure to check for the latest version.
